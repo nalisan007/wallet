@@ -10,15 +10,16 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface WalletRepository extends JpaRepository<Wallet, UUID> {
+public interface WalletRepository
+    extends JpaRepository<Wallet, UUID> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
         SELECT w
         FROM Wallet w
-        WHERE w.id = :walletId
+        WHERE w.id = :id
         """)
     Optional<Wallet> findByIdForUpdate(
-        @Param("walletId") UUID walletId
+        @Param("id") UUID id
     );
 }

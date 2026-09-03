@@ -8,6 +8,7 @@ public record TransferResponse(
     UUID fromWalletId,
     UUID toWalletId,
     long amountPaise,
+    TransferStatus status,
     Instant createdAt
 ) {
 }

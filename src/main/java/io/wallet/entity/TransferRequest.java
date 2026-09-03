@@ -7,14 +7,22 @@ import java.util.UUID;
 
 public record TransferRequest(
 
-    @NotNull(message = "From wallet ID is required")
+    @NotNull(
+        message = "Source wallet ID is required"
+    )
     UUID fromWalletId,
 
-    @NotNull(message = "To wallet ID is required")
+    @NotNull(
+        message = "Destination wallet ID is required"
+    )
     UUID toWalletId,
 
-    @NotNull(message = "Transfer amount in paise is required")
-    @Positive(message = "Transfer amount in paise must be greater than zero")
+    @NotNull(
+        message = "Transfer amount is required"
+    )
+    @Positive(
+        message = "Transfer amount must be positive"
+    )
     Long amountPaise
 ) {
 }

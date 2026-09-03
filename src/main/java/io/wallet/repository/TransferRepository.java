@@ -16,26 +16,33 @@ public interface TransferRepository
     @Query("""
         SELECT t
         FROM Transfer t
-        WHERE (t.fromWalletId = :walletId
-               OR t.toWalletId = :walletId)
-          AND (:fromDate IS NULL
-               OR t.createdAt >= :fromDate)
-          AND (:toDate IS NULL
-               OR t.createdAt <= :toDate)
-          AND (
-              :cursorCreatedAt IS NULL
-              OR t.createdAt < :cursorCreatedAt
-              OR (
-                  t.createdAt = :cursorCreatedAt
-                  AND t.id < :cursorId
-              )
-          )
+        WHERE
+            (
+                t.fromWalletId = :walletId
+                OR t.toWalletId = :walletId
+            )
+            AND (
+                :from IS NULL
+                OR t.createdAt >= :from
+            )
+            AND (
+                :to IS NULL
+                OR t.createdAt <= :to
+            )
+            AND (
+                :cursorCreatedAt IS NULL
+                OR t.createdAt < :cursorCreatedAt
+                OR (
+                    t.createdAt = :cursorCreatedAt
+                    AND t.id < :cursorId
+                )
+            )
         ORDER BY t.createdAt DESC, t.id DESC
         """)
-    List<Transfer> findWalletTransfers(
+    List<Transfer> findHistory(
         @Param("walletId") UUID walletId,
-        @Param("fromDate") Instant fromDate,
-        @Param("toDate") Instant toDate,
+        @Param("from") Instant from,
+        @Param("to") Instant to,
         @Param("cursorCreatedAt") Instant cursorCreatedAt,
         @Param("cursorId") UUID cursorId,
         Pageable pageable

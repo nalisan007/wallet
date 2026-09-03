@@ -3,36 +3,56 @@ package io.wallet.service;
 import io.wallet.entity.LedgerEntryType;
 import io.wallet.entity.LedgerTransaction;
 import io.wallet.entity.Transfer;
+import io.wallet.entity.Wallet;
 import io.wallet.repository.LedgerTransactionRepository;
 import org.springframework.stereotype.Service;
 
 @Service
 public class TransferLedgerService {
 
-    private final LedgerTransactionRepository ledgerTransactionRepository;
+    private final LedgerTransactionRepository ledgerRepository;
 
     public TransferLedgerService(
-        LedgerTransactionRepository ledgerTransactionRepository
+        LedgerTransactionRepository ledgerRepository
     ) {
-        this.ledgerTransactionRepository = ledgerTransactionRepository;
+        this.ledgerRepository = ledgerRepository;
     }
 
-    public void createLedgerEntries(Transfer transfer) {
-        LedgerTransaction debit = new LedgerTransaction(
-            transfer.getFromWalletId(),
-            transfer.getId(),
-            LedgerEntryType.DEBIT,
-            transfer.getAmountPaise()
-        );
+    public Transfer createTransfer(
+        Wallet fromWallet,
+        Wallet toWallet,
+        long amountPaise
+    ) {
+        fromWallet.debit(amountPaise);
+        toWallet.credit(amountPaise);
 
-        LedgerTransaction credit = new LedgerTransaction(
-            transfer.getToWalletId(),
-            transfer.getId(),
-            LedgerEntryType.CREDIT,
-            transfer.getAmountPaise()
+        return new Transfer(
+            fromWallet.getId(),
+            toWallet.getId(),
+            amountPaise
         );
+    }
 
-        ledgerTransactionRepository.save(debit);
-        ledgerTransactionRepository.save(credit);
+    public void createLedgerEntries(
+        Transfer transfer
+    ) {
+        LedgerTransaction debit =
+            new LedgerTransaction(
+                transfer.getFromWalletId(),
+                transfer.getId(),
+                LedgerEntryType.DEBIT,
+                transfer.getAmountPaise()
+            );
+
+        LedgerTransaction credit =
+            new LedgerTransaction(
+                transfer.getToWalletId(),
+                transfer.getId(),
+                LedgerEntryType.CREDIT,
+                transfer.getAmountPaise()
+            );
+
+        ledgerRepository.save(debit);
+        ledgerRepository.save(credit);
     }
 }
