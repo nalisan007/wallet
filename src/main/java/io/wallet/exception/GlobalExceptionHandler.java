@@ -129,6 +129,18 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(IdempotencyKeyProcessingException.class)
+    public ResponseEntity<ApiError> handleIdempotencyKeyProcessing(
+        IdempotencyKeyProcessingException exception
+    ) {
+        return response(
+            HttpStatus.CONFLICT,
+            "IDEMPOTENCY_KEY_PROCESSING",
+            exception.getMessage(),
+            Map.of()
+        );
+    }
+
     @ExceptionHandler(IdempotencyKeyReuseException.class)
     public ResponseEntity<ApiError> handleIdempotencyKeyReuse(
         IdempotencyKeyReuseException exception

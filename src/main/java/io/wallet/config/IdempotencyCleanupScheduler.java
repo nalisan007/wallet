@@ -10,29 +10,17 @@ import org.springframework.stereotype.Component;
 public class IdempotencyCleanupScheduler {
 
     private static final Logger log =
-        LoggerFactory.getLogger(
-            IdempotencyCleanupScheduler.class
-        );
+        LoggerFactory.getLogger(IdempotencyCleanupScheduler.class);
 
     private final IdempotencyCleanupService cleanupService;
 
-    public IdempotencyCleanupScheduler(
-        IdempotencyCleanupService cleanupService
-    ) {
+    public IdempotencyCleanupScheduler(IdempotencyCleanupService cleanupService) {
         this.cleanupService = cleanupService;
     }
 
-    @Scheduled(
-        fixedDelayString =
-            "${wallet.idempotency.cleanup-delay-ms:3600000}"
-    )
+    @Scheduled(fixedDelayString = "${wallet.idempotency.cleanup-delay-ms:3600000}")
     public void cleanupExpiredIdempotencyRecords() {
-        long deletedCount =
-            cleanupService.deleteExpiredRecords();
-
-        log.info(
-            "Idempotency cleanup completed, deleted {} expired records",
-            deletedCount
-        );
+        long deleted = cleanupService.deleteExpiredRecords();
+        log.info("Deleted {} expired idempotency records", deleted);
     }
 }

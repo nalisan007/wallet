@@ -1,0 +1,61 @@
+import type { WalletStatementResponse } from "../types/statement";
+import { formatDateTime } from "../utils/date";
+import { formatPaise } from "../utils/money";
+import { EmptyState } from "./EmptyState";
+
+export function StatementTable({
+  statement
+}: {
+  statement: WalletStatementResponse;
+}) {
+  return (
+    <section className="card">
+      <div className="balance-strip">
+        <div>
+          <span>Opening balance</span>
+          <strong>{formatPaise(statement.openingBalancePaise)}</strong>
+        </div>
+        <div>
+          <span>Closing balance</span>
+          <strong>{formatPaise(statement.closingBalancePaise)}</strong>
+        </div>
+      </div>
+
+      {statement.entries.length === 0 ? (
+        <EmptyState message="No ledger entries found for this period." />
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Entry</th>
+                <th>Amount</th>
+                <th>Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {statement.entries.map((entry) => (
+                <tr key={entry.entryId ?? entry.ledgerTransactionId ?? entry.transactionId}>
+                  <td>{formatDateTime(entry.createdAt)}</td>
+                  <td>{entry.transactionType ?? "TRANSFER"}</td>
+                  <td>{entry.entryType}</td>
+                  <td className={`money ${entry.entryType.toLowerCase()}`}>
+                    {entry.entryType === "CREDIT" ? "+" : "-"}
+                    {formatPaise(entry.amountPaise)}
+                  </td>
+                  <td>
+                    {entry.balanceAfterPaise !== undefined
+                      ? formatPaise(entry.balanceAfterPaise)
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}

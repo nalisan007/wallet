@@ -8,6 +8,7 @@ public class WalletNotFoundException extends RuntimeException {
     private final UUID walletId;
 
     public WalletNotFoundException(UUID walletId) {
+        super("Wallet not found: " + walletId);
         this.message =
             "Wallet not found: " + walletId;
         this.walletId = walletId;

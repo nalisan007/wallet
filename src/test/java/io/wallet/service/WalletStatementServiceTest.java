@@ -74,7 +74,8 @@ class WalletStatementServiceTest {
         when(
             ledgerRepository.calculateOpeningBalancePaise(
                 walletId,
-                from
+                from,
+                LedgerEntryType.CREDIT
             )
         ).thenReturn(Optional.of(1_000L));
 
@@ -119,7 +120,8 @@ class WalletStatementServiceTest {
         when(
             ledgerRepository.calculateOpeningBalancePaise(
                 walletId,
-                from
+                from,
+                LedgerEntryType.CREDIT
             )
         ).thenReturn(Optional.empty());
 

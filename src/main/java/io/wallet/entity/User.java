@@ -3,6 +3,8 @@ package io.wallet.entity;
 import com.github.f4b6a3.uuid.UuidCreator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
@@ -53,6 +55,7 @@ public class User {
     private String name;
 
     @NotNull(message = "User status is required")
+    @Enumerated(EnumType.STRING)
     @Column(
         name = "status",
         nullable = false,

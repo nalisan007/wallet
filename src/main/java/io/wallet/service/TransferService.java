@@ -49,11 +49,17 @@ public class TransferService {
     ) {
         validateRequest(request);
 
-        IdempotencyRecord record =
+        IdempotencyService.Result idempotencyResult =
             idempotencyService.findExistingOrCreate(
                 idempotencyKey,
                 request
             );
+
+        IdempotencyRecord record = idempotencyResult.record();
+
+        if (!idempotencyResult.created() && record.getTransferId() == null) {
+            throw idempotencyService.processing(idempotencyKey);
+        }
 
         if (record.getTransferId() != null) {
             return transferRepository

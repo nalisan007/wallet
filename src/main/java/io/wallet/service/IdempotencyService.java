@@ -4,15 +4,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.wallet.entity.IdempotencyRecord;
 import io.wallet.entity.TransferRequest;
+import io.wallet.exception.IdempotencyKeyProcessingException;
 import io.wallet.exception.IdempotencyKeyReuseException;
 import io.wallet.repository.IdempotencyRecordRepository;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.HexFormat;
 import java.util.UUID;
 
@@ -21,111 +22,76 @@ public class IdempotencyService {
 
     private final IdempotencyRecordRepository repository;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
 
     public IdempotencyService(
         IdempotencyRecordRepository repository,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        Clock clock
     ) {
         this.repository = repository;
         this.objectMapper = objectMapper;
+        this.clock = clock;
     }
 
-    @Transactional
-    public IdempotencyRecord findExistingOrCreate(
+    public Result findExistingOrCreate(
         UUID idempotencyKey,
         TransferRequest request
     ) {
         if (idempotencyKey == null) {
-            throw new IllegalArgumentException(
-                "Idempotency key is required"
-            );
+            throw new IllegalArgumentException("Idempotency key is required");
+        }
+        if (request == null) {
+            throw new IllegalArgumentException("Transfer request is required");
         }
 
         String requestHash = calculateRequestHash(request);
+        Instant now = clock.instant();
 
-        IdempotencyRecord existing =
-            repository.findById(idempotencyKey).orElse(null);
+        int inserted = repository.insertIfAbsent(idempotencyKey, requestHash, now);
 
-        if (existing != null) {
-            validateHash(existing, requestHash);
-            return existing;
-        }
+        IdempotencyRecord record = repository.findById(idempotencyKey)
+            .orElseThrow(() -> new IllegalStateException(
+                "Idempotency record could not be read after creation"
+            ));
 
-        IdempotencyRecord record =
-            new IdempotencyRecord(
-                idempotencyKey,
-                requestHash
-            );
+        validateHash(record, requestHash);
 
-        try {
-            return repository.saveAndFlush(record);
-        } catch (DataIntegrityViolationException exception) {
-            /*
-             * Another transaction may have inserted the same key
-             * concurrently. Read the committed record and validate
-             * the request hash.
-             */
-            IdempotencyRecord concurrent =
-                repository.findById(idempotencyKey)
-                    .orElseThrow(() ->
-                        exception
-                    );
-
-            validateHash(concurrent, requestHash);
-
-            return concurrent;
-        }
+        return new Result(record, inserted == 1);
     }
 
-    private void validateHash(
-        IdempotencyRecord record,
-        String requestHash
-    ) {
+    private void validateHash(IdempotencyRecord record, String requestHash) {
         if (!MessageDigest.isEqual(
-            record.getRequestHash()
-                .getBytes(StandardCharsets.UTF_8),
+            record.getRequestHash().getBytes(StandardCharsets.UTF_8),
             requestHash.getBytes(StandardCharsets.UTF_8)
         )) {
-            throw new IdempotencyKeyReuseException(
-                record.getIdempotencyKey()
-            );
+            throw new IdempotencyKeyReuseException(record.getIdempotencyKey());
         }
     }
 
-    private String calculateRequestHash(
-        TransferRequest request
-    ) {
+    public record Result(IdempotencyRecord record, boolean created) {}
+
+    public IdempotencyKeyProcessingException processing(UUID key) {
+        return new IdempotencyKeyProcessingException(key);
+    }
+
+    private String calculateRequestHash(TransferRequest request) {
         try {
-            String canonicalRequest =
-                objectMapper.writeValueAsString(
-                    new CanonicalTransferRequest(
-                        request.fromWalletId(),
-                        request.toWalletId(),
-                        request.amountPaise()
-                    )
-                );
-
-            MessageDigest digest =
-                MessageDigest.getInstance("SHA-256");
-
-            return HexFormat.of().formatHex(
-                digest.digest(
-                    canonicalRequest.getBytes(
-                        StandardCharsets.UTF_8
-                    )
+            String canonical = objectMapper.writeValueAsString(
+                new CanonicalTransferRequest(
+                    request.fromWalletId(),
+                    request.toWalletId(),
+                    request.amountPaise()
                 )
             );
-
-        } catch (JsonProcessingException exception) {
-            throw new IllegalStateException(
-                "Unable to serialize transfer request",
-                exception
+            return HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.getBytes(StandardCharsets.UTF_8))
             );
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException(
-                "SHA-256 is not available",
-                exception
-            );
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Unable to serialize transfer request", e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
         }
     }
 
@@ -133,6 +99,5 @@ public class IdempotencyService {
         UUID fromWalletId,
         UUID toWalletId,
         Long amountPaise
-    ) {
-    }
+    ) {}
 }

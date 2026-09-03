@@ -8,6 +8,7 @@ public class WalletInactiveException extends RuntimeException {
     private final UUID walletId;
 
     public WalletInactiveException(UUID walletId) {
+        super("Wallet is inactive: " + walletId);
         this.message =
             "Wallet is inactive: " + walletId;
         this.walletId = walletId;

@@ -7,11 +7,13 @@ import io.wallet.exception.IdempotencyKeyReuseException;
 import io.wallet.repository.IdempotencyRecordRepository;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -20,133 +22,56 @@ class IdempotencyServiceTest {
     private final IdempotencyRecordRepository repository =
         mock(IdempotencyRecordRepository.class);
 
+    private final Clock clock = Clock.fixed(
+        Instant.parse("2026-09-03T12:00:00Z"),
+        ZoneOffset.UTC
+    );
+
     private final IdempotencyService service =
-        new IdempotencyService(
-            repository,
-            new ObjectMapper()
-        );
+        new IdempotencyService(repository, new ObjectMapper(), clock);
 
     @Test
-    void shouldCreateNewRecord() {
+    void shouldCreateRecord() {
         UUID key = UUID.randomUUID();
-
-        TransferRequest request =
-            new TransferRequest(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                1_000L
-            );
-
-        when(repository.findById(key))
-            .thenReturn(Optional.empty());
-
-        when(repository.saveAndFlush(any()))
-            .thenAnswer(invocation ->
-                invocation.getArgument(0));
-
-        IdempotencyRecord result =
-            service.findExistingOrCreate(
-                key,
-                request
-            );
-
-        assertEquals(
-            key,
-            result.getIdempotencyKey()
+        TransferRequest request = new TransferRequest(
+            UUID.randomUUID(), UUID.randomUUID(), 1_000L
         );
 
-        verify(repository).saveAndFlush(any());
+        final String[] hash = new String[1];
+        when(repository.insertIfAbsent(eq(key), any(), any()))
+            .thenAnswer(invocation -> {
+                hash[0] = invocation.getArgument(1);
+                return 1;
+            });
+        when(repository.findById(key)).thenAnswer(invocation ->
+            Optional.of(new IdempotencyRecord(key, hash[0]))
+        );
+
+        IdempotencyService.Result result = service.findExistingOrCreate(key, request);
+
+        assertTrue(result.created());
+        assertEquals(key, result.record().getIdempotencyKey());
+        verify(repository).insertIfAbsent(eq(key), any(), eq(clock.instant()));
     }
 
     @Test
-    void shouldReturnExistingRecordForSameRequest() {
+    void shouldRejectDifferentRequestForExistingKey() {
         UUID key = UUID.randomUUID();
-
-        TransferRequest request =
-            new TransferRequest(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                1_000L
-            );
-
-        when(repository.findById(key))
-            .thenReturn(
-                Optional.of(
-                    createRecord(
-                        key,
-                        request
-                    )
-                )
-            );
-
-        IdempotencyRecord result =
-            service.findExistingOrCreate(
-                key,
-                request
-            );
-
-        assertEquals(
-            key,
-            result.getIdempotencyKey()
+        TransferRequest first = new TransferRequest(
+            UUID.randomUUID(), UUID.randomUUID(), 1_000L
+        );
+        TransferRequest second = new TransferRequest(
+            first.fromWalletId(), first.toWalletId(), 2_000L
         );
 
-        verify(repository, never())
-            .saveAndFlush(any());
-    }
-
-    @Test
-    void shouldRejectSameKeyWithDifferentRequest() {
-        UUID key = UUID.randomUUID();
-
-        TransferRequest original =
-            new TransferRequest(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                1_000L
-            );
-
-        TransferRequest different =
-            new TransferRequest(
-                original.fromWalletId(),
-                original.toWalletId(),
-                2_000L
-            );
-
-        when(repository.findById(key))
-            .thenReturn(
-                Optional.of(
-                    createRecord(
-                        key,
-                        original
-                    )
-                )
-            );
+        when(repository.insertIfAbsent(eq(key), any(), any())).thenReturn(0);
+        when(repository.findById(key)).thenReturn(Optional.of(
+            new IdempotencyRecord(key, "not-the-second-request-hash")
+        ));
 
         assertThrows(
             IdempotencyKeyReuseException.class,
-            () -> service.findExistingOrCreate(
-                key,
-                different
-            )
-        );
-
-        verify(repository, never())
-            .saveAndFlush(any());
-    }
-
-    private IdempotencyRecord createRecord(
-        UUID key,
-        TransferRequest request
-    ) {
-        IdempotencyService hashService =
-            new IdempotencyService(
-                mock(IdempotencyRecordRepository.class),
-                new ObjectMapper()
-            );
-
-        return hashService.findExistingOrCreate(
-            key,
-            request
+            () -> service.findExistingOrCreate(key, second)
         );
     }
 }

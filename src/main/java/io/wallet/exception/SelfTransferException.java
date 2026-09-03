@@ -8,6 +8,7 @@ public class SelfTransferException extends RuntimeException {
     private final UUID walletId;
 
     public SelfTransferException(UUID walletId) {
+        super("Source and destination wallets must be different");
         this.message =
             "Source and destination wallets must be different";
         this.walletId = walletId;

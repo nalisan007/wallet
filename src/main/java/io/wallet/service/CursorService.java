@@ -6,6 +6,7 @@ import io.wallet.entity.Cursor;
 import io.wallet.exception.InvalidCursorException;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
@@ -71,11 +72,16 @@ public class CursorService {
             return cursor;
 
         } catch (
-            IllegalArgumentException
+                IllegalArgumentException
                 | JsonProcessingException exception
         ) {
             throw new InvalidCursorException(
                 "Invalid cursor"
+            );
+        }
+        catch(IOException e){
+            throw new InvalidCursorException(
+                    "Invalid cursor"
             );
         }
     }

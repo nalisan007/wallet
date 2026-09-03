@@ -1,6 +1,5 @@
 package io.wallet.service;
 
-import io.wallet.entity.Cursor;
 import io.wallet.entity.Transfer;
 import io.wallet.entity.TransferHistoryResponse;
 import io.wallet.entity.Wallet;
@@ -19,8 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class TransferHistoryServiceTest {
 
@@ -55,10 +53,14 @@ class TransferHistoryServiceTest {
             );
 
         Instant from =
-            Instant.parse("2026-02-02T00:00:00Z");
+            Instant.parse(
+                "2026-09-03T10:00:00Z"
+            );
 
         Instant to =
-            Instant.parse("2026-02-01T00:00:00Z");
+            Instant.parse(
+                "2026-09-03T09:00:00Z"
+            );
 
         assertThrows(
             InvalidDateRangeException.class,
@@ -70,28 +72,54 @@ class TransferHistoryServiceTest {
                 20
             )
         );
+
+        verifyNoInteractions(
+            transferRepository,
+            cursorService
+        );
     }
 
     @Test
-    void shouldReturnNextCursorWhenMoreRecordsExist() {
+    void shouldReturnNextCursor() {
         UUID walletId = UUID.randomUUID();
 
         Wallet wallet =
-            new Wallet(
-                10_000L,
-                WalletStatus.ACTIVE
-            );
-
-        setWalletId(wallet, walletId);
+            mock(Wallet.class);
 
         when(walletRepository.findById(walletId))
             .thenReturn(Optional.of(wallet));
 
-        List<Transfer> transfers = List.of(
-            createTransfer(walletId),
-            createTransfer(walletId),
-            createTransfer(walletId)
-        );
+        Transfer first =
+            mock(Transfer.class);
+
+        Transfer second =
+            mock(Transfer.class);
+
+        Transfer third =
+            mock(Transfer.class);
+
+        when(first.getId())
+            .thenReturn(UUID.randomUUID());
+
+        when(second.getId())
+            .thenReturn(UUID.randomUUID());
+
+        when(third.getId())
+            .thenReturn(UUID.randomUUID());
+
+        when(first.getCreatedAt())
+            .thenReturn(
+                Instant.parse(
+                    "2026-09-03T10:00:00Z"
+                )
+            );
+
+        when(second.getCreatedAt())
+            .thenReturn(
+                Instant.parse(
+                    "2026-09-03T09:00:00Z"
+                )
+            );
 
         when(
             transferRepository.findHistory(
@@ -102,10 +130,16 @@ class TransferHistoryServiceTest {
                 eq(null),
                 any()
             )
-        ).thenReturn(transfers);
+        ).thenReturn(
+            List.of(
+                first,
+                second,
+                third
+            )
+        );
 
         when(cursorService.encode(any()))
-            .thenReturn("next-cursor");
+            .thenReturn("cursor-2");
 
         TransferHistoryResponse response =
             service.getHistory(
@@ -122,7 +156,7 @@ class TransferHistoryServiceTest {
         );
 
         assertEquals(
-            "next-cursor",
+            "cursor-2",
             response.nextCursor()
         );
 
@@ -130,36 +164,5 @@ class TransferHistoryServiceTest {
             true,
             response.hasNext()
         );
-    }
-
-    private Transfer createTransfer(
-        UUID walletId
-    ) {
-        UUID destination = UUID.randomUUID();
-
-        return new Transfer(
-            walletId,
-            destination,
-            1_000L
-        );
-    }
-
-    private void setWalletId(
-        Wallet wallet,
-        UUID id
-    ) {
-        try {
-            var field =
-                Wallet.class.getDeclaredField("id");
-
-            field.setAccessible(true);
-            field.set(wallet, id);
-
-        } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException(
-                "Unable to prepare wallet test fixture",
-                exception
-            );
-        }
     }
 }

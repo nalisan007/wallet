@@ -1,8 +1,10 @@
 package io.wallet.controller;
 
+import com.github.f4b6a3.uuid.UuidCreator;
 import io.wallet.entity.TransferRequest;
 import io.wallet.entity.TransferResponse;
 import io.wallet.entity.TransferStatus;
+import io.wallet.exception.GlobalExceptionHandler;
 import io.wallet.service.TransferHistoryService;
 import io.wallet.service.TransferService;
 import org.junit.jupiter.api.Test;
@@ -37,13 +39,14 @@ class TransferControllerTest {
     private final MockMvc mockMvc =
         MockMvcBuilders
             .standaloneSetup(controller)
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
 
     @Test
     void shouldCreateTransfer() throws Exception {
         UUID walletId = UUID.randomUUID();
         UUID destinationId = UUID.randomUUID();
-        UUID idempotencyKey = UUID.randomUUID();
+        UUID idempotencyKey = UuidCreator.getTimeOrderedEpoch();
 
         TransferResponse response =
             new TransferResponse(
@@ -103,7 +106,7 @@ class TransferControllerTest {
             )
                 .header(
                     "Idempotency-Key",
-                    UUID.randomUUID().toString()
+                    UuidCreator.getTimeOrderedEpoch().toString()
                 )
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
@@ -165,7 +168,7 @@ class TransferControllerTest {
             )
                 .header(
                     "Idempotency-Key",
-                    UUID.randomUUID().toString()
+                    UuidCreator.getTimeOrderedEpoch().toString()
                 )
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""

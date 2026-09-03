@@ -15,6 +15,7 @@ public class InsufficientBalanceException
         long requestedAmountPaise,
         long availableBalancePaise
     ) {
+        super("Insufficient balance for wallet: " + walletId);
         this.message =
             "Insufficient balance for wallet: " + walletId;
 

@@ -1,8 +1,6 @@
 package io.wallet.service;
 
 import io.wallet.repository.IdempotencyRecordRepository;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,23 +18,23 @@ public class IdempotencyCleanupService {
     public IdempotencyCleanupService(
         IdempotencyRecordRepository repository,
         Clock clock,
-        @Value("${wallet.idempotency.retention}") Duration retention
+        Duration retention
     ) {
+        if (retention == null || retention.isNegative() || retention.isZero()) {
+            throw new IllegalArgumentException("Idempotency retention must be positive");
+        }
         this.repository = repository;
         this.clock = clock;
         this.retention = retention;
     }
 
-    @Scheduled(
-        fixedDelayString = "${wallet.idempotency.cleanup-delay}"
-    )
     @Transactional
-    public int cleanup() {
-        Instant cutoff =
-            Instant.now(clock).minus(retention);
+    public long deleteExpiredRecords() {
+        Instant cutoff = clock.instant().minus(retention);
+        return repository.deleteExpiredCompletedRecords(cutoff);
+    }
 
-        return repository.deleteExpiredCompletedRecords(
-            cutoff
-        );
+    public long cleanup() {
+        return deleteExpiredRecords();
     }
 }

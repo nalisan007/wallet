@@ -3,7 +3,7 @@ package io.wallet.controller;
 import io.wallet.entity.TransferHistoryResponse;
 import io.wallet.entity.TransferRequest;
 import io.wallet.entity.TransferResponse;
-import io.wallet.exception.InvalidIdempotencyKeyException;
+import io.wallet.config.IdempotencyKeyValidator;
 import io.wallet.service.TransferHistoryService;
 import io.wallet.service.TransferService;
 import jakarta.validation.Valid;
@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -55,7 +56,7 @@ public class TransferController {
         validateWalletId(walletId, request);
 
         UUID parsedIdempotencyKey =
-            parseIdempotencyKey(idempotencyKey);
+            IdempotencyKeyValidator.parse(idempotencyKey);
 
         TransferResponse response =
             transferService.createTransfer(
@@ -77,9 +78,11 @@ public class TransferController {
         UUID walletId,
 
         @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         Instant from,
 
         @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         Instant to,
 
         @RequestParam(required = false)
@@ -118,21 +121,5 @@ public class TransferController {
         }
     }
 
-    private UUID parseIdempotencyKey(
-        String value
-    ) {
-        if (value == null || value.isBlank()) {
-            throw new InvalidIdempotencyKeyException(
-                "Idempotency-Key header is required"
-            );
-        }
 
-        try {
-            return UUID.fromString(value);
-        } catch (IllegalArgumentException exception) {
-            throw new InvalidIdempotencyKeyException(
-                "Idempotency-Key must be a valid UUID"
-            );
-        }
-    }
 }

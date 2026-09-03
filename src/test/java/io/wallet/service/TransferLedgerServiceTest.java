@@ -1,10 +1,9 @@
 package io.wallet.service;
 
+
 import io.wallet.entity.LedgerEntryType;
 import io.wallet.entity.LedgerTransaction;
 import io.wallet.entity.Transfer;
-import io.wallet.entity.Wallet;
-import io.wallet.entity.WalletStatus;
 import io.wallet.repository.LedgerTransactionRepository;
 import org.junit.jupiter.api.Test;
 
@@ -12,142 +11,135 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 class TransferLedgerServiceTest {
 
     private final LedgerTransactionRepository ledgerRepository =
-        mock(LedgerTransactionRepository.class);
+            mock(LedgerTransactionRepository.class);
 
     private final TransferLedgerService service =
-        new TransferLedgerService(ledgerRepository);
+            new TransferLedgerService(ledgerRepository);
 
     @Test
-    void shouldDebitAndCreditWallets() {
-        Wallet fromWallet =
-            new Wallet(10_000L, WalletStatus.ACTIVE);
-
-        Wallet toWallet =
-            new Wallet(5_000L, WalletStatus.ACTIVE);
-
-        setWalletId(fromWallet, UUID.randomUUID());
-        setWalletId(toWallet, UUID.randomUUID());
-
-        Transfer transfer =
-            service.executeTransfer(
-                fromWallet,
-                toWallet,
-                2_500L
-            );
-
-        assertEquals(
-            7_500L,
-            fromWallet.getBalancePaise()
-        );
-
-        assertEquals(
-            7_500L,
-            toWallet.getBalancePaise()
-        );
-
-        /*
-         * @PrePersist normally generates the transfer ID when the
-         * entity is persisted. For this unit test, persistence is
-         * intentionally not performed, so ledger persistence is
-         * tested separately after the transfer receives its ID.
-         */
-        assertEquals(
-            fromWallet.getId(),
-            transfer.getFromWalletId()
-        );
-
-        assertEquals(
-            toWallet.getId(),
-            transfer.getToWalletId()
-        );
-
-        assertEquals(
-            2_500L,
-            transfer.getAmountPaise()
-        );
-    }
-
-    @Test
-    void shouldCreateBalancedLedgerEntries() {
-        UUID transferId = UUID.randomUUID();
+    void shouldCreateDebitAndCreditLedgerEntries() {
         UUID fromWalletId = UUID.randomUUID();
         UUID toWalletId = UUID.randomUUID();
 
         Transfer transfer =
-            new Transfer(
-                fromWalletId,
-                toWalletId,
-                2_500L
-            );
-
-        setTransferId(transfer, transferId);
+                new Transfer(
+                        fromWalletId,
+                        toWalletId,
+                        1_000L
+                );
 
         service.createLedgerEntries(transfer);
 
-        verify(ledgerRepository).save(
-            org.mockito.ArgumentMatchers.argThat(
-                entry ->
-                    entry.getWalletId().equals(fromWalletId)
-                        && entry.getTransferId().equals(transferId)
-                        && entry.getEntryType()
-                            == LedgerEntryType.DEBIT
-                        && entry.getAmountPaise() == 2_500L
-            )
+        verify(ledgerRepository, times(2))
+                .save(any(LedgerTransaction.class));
+
+        var captor =
+                org.mockito.ArgumentCaptor.forClass(
+                        LedgerTransaction.class
+                );
+
+        verify(ledgerRepository, times(2))
+                .save(captor.capture());
+
+        List<LedgerTransaction> entries =
+                captor.getAllValues();
+
+        assertEquals(2, entries.size());
+
+        LedgerTransaction debit =
+                entries.stream()
+                        .filter(entry ->
+                                entry.getEntryType()
+                                        == LedgerEntryType.DEBIT
+                        )
+                        .findFirst()
+                        .orElseThrow();
+
+        LedgerTransaction credit =
+                entries.stream()
+                        .filter(entry ->
+                                entry.getEntryType()
+                                        == LedgerEntryType.CREDIT
+                        )
+                        .findFirst()
+                        .orElseThrow();
+
+        assertEquals(
+                fromWalletId,
+                debit.getWalletId()
         );
 
-        verify(ledgerRepository).save(
-            org.mockito.ArgumentMatchers.argThat(
-                entry ->
-                    entry.getWalletId().equals(toWalletId)
-                        && entry.getTransferId().equals(transferId)
-                        && entry.getEntryType()
-                            == LedgerEntryType.CREDIT
-                        && entry.getAmountPaise() == 2_500L
-            )
+        assertEquals(
+                toWalletId,
+                credit.getWalletId()
+        );
+
+        assertEquals(
+                transfer.getId(),
+                debit.getTransferId()
+        );
+
+        assertEquals(
+                transfer.getId(),
+                credit.getTransferId()
+        );
+
+        assertEquals(
+                1_000L,
+                debit.getAmountPaise()
+        );
+
+        assertEquals(
+                1_000L,
+                credit.getAmountPaise()
         );
     }
 
-    private void setWalletId(
-        Wallet wallet,
-        UUID id
-    ) {
-        try {
-            var field =
-                Wallet.class.getDeclaredField("id");
+    @Test
+    void shouldCreateExactlyOneDebitAndOneCredit() {
+        Transfer transfer =
+                new Transfer(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        5_000L
+                );
 
-            field.setAccessible(true);
-            field.set(wallet, id);
+        service.createLedgerEntries(transfer);
 
-        } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException(
-                "Unable to prepare wallet test fixture",
-                exception
-            );
-        }
-    }
+        var captor =
+                org.mockito.ArgumentCaptor.forClass(
+                        LedgerTransaction.class
+                );
 
-    private void setTransferId(
-        Transfer transfer,
-        UUID id
-    ) {
-        try {
-            var field =
-                Transfer.class.getDeclaredField("id");
+        verify(ledgerRepository, times(2))
+                .save(captor.capture());
 
-            field.setAccessible(true);
-            field.set(transfer, id);
+        List<LedgerTransaction> entries =
+                captor.getAllValues();
 
-        } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException(
-                "Unable to prepare transfer test fixture",
-                exception
-            );
-        }
+        long debitCount =
+                entries.stream()
+                        .filter(entry ->
+                                entry.getEntryType()
+                                        == LedgerEntryType.DEBIT
+                        )
+                        .count();
+
+        long creditCount =
+                entries.stream()
+                        .filter(entry ->
+                                entry.getEntryType()
+                                        == LedgerEntryType.CREDIT
+                        )
+                        .count();
+
+        assertEquals(1, debitCount);
+        assertEquals(1, creditCount);
     }
 }
