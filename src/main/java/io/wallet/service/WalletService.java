@@ -1,8 +1,7 @@
 package io.wallet.service;
 
 import io.wallet.entity.Wallet;
-import io.wallet.entity.WalletStatus;
-import io.wallet.entity.WalletType;
+import io.wallet.entity.WalletResponse;
 import io.wallet.exception.WalletNotFoundException;
 import io.wallet.repository.WalletRepository;
 import org.springframework.stereotype.Service;
@@ -20,28 +19,18 @@ public class WalletService {
     }
 
     @Transactional(readOnly = true)
-    public Wallet getWallet(UUID walletId) {
-        return walletRepository.findById(walletId)
-            .orElseThrow(() -> new WalletNotFoundException(walletId));
-    }
-
-    @Transactional
-    public Wallet getWalletForUpdate(UUID walletId) {
-        return walletRepository.findByIdForUpdate(walletId)
-            .orElseThrow(() -> new WalletNotFoundException(walletId));
-    }
-
-    @Transactional(readOnly = true)
-    public Wallet getSystemWallet() {
-        return walletRepository
-            .findByWalletTypeAndStatus(
-                WalletType.SYSTEM,
-                WalletStatus.ACTIVE
-            )
+    public WalletResponse getWallet(UUID walletId) {
+        Wallet wallet = walletRepository.findById(walletId)
             .orElseThrow(() ->
-                new WalletNotFoundException(
-                    "Active system wallet not found"
-                )
+                new WalletNotFoundException(walletId)
             );
+
+        return new WalletResponse(
+            wallet.getId(),
+            wallet.getBalancePaise(),
+            wallet.getStatus(),
+            wallet.getCreatedAt(),
+            wallet.getUpdatedAt()
+        );
     }
 }

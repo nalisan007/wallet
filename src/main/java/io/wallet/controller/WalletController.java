@@ -1,44 +1,59 @@
 package io.wallet.controller;
 
-import io.wallet.entity.WalletDetailsResponse;
-import io.wallet.entity.Wallet;
+import io.wallet.entity.WalletResponse;
+import io.wallet.entity.WalletStatementResponse;
 import io.wallet.service.WalletService;
-import jakarta.validation.constraints.NotNull;
+import io.wallet.service.WalletStatementService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/wallets")
-@Validated
 public class WalletController {
 
     private final WalletService walletService;
+    private final WalletStatementService walletStatementService;
 
-    public WalletController(WalletService walletService) {
+    public WalletController(
+        WalletService walletService,
+        WalletStatementService walletStatementService
+    ) {
         this.walletService = walletService;
+        this.walletStatementService = walletStatementService;
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<WalletDetailsResponse> getWallet(
-        @PathVariable("id")
-        @NotNull(message = "Wallet ID is required")
-        UUID walletId
+    public ResponseEntity<WalletResponse> getWallet(
+        @PathVariable UUID id
     ) {
-        Wallet wallet = walletService.getWallet(walletId);
+        WalletResponse response =
+            walletService.getWallet(id);
 
-        WalletDetailsResponse response = new WalletDetailsResponse(
-            wallet.getId(),
-            wallet.getWalletType(),
-            wallet.getBalancePaise(),
-            wallet.getStatus(),
-            java.util.List.of()
-        );
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/statement")
+    public ResponseEntity<WalletStatementResponse> getStatement(
+        @PathVariable UUID id,
+
+        @RequestParam
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+        Instant from,
+
+        @RequestParam
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+        Instant to
+    ) {
+        WalletStatementResponse response =
+            walletStatementService.getStatement(
+                id,
+                from,
+                to
+            );
 
         return ResponseEntity.ok(response);
     }

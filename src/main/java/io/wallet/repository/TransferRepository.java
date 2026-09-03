@@ -2,14 +2,14 @@ package io.wallet.repository;
 
 import io.wallet.entity.Transfer;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
-@Repository
+
 public interface TransferRepository extends JpaRepository<Transfer, UUID> {
 
     @Query("""
@@ -28,7 +28,7 @@ public interface TransferRepository extends JpaRepository<Transfer, UUID> {
           )
         ORDER BY t.createdAt DESC, t.id DESC
         """)
-    Slice<Transfer> findTransferHistory(
+    List<Transfer> findWalletTransfers(
         @Param("walletId") UUID walletId,
         @Param("fromDate") Instant fromDate,
         @Param("toDate") Instant toDate,
