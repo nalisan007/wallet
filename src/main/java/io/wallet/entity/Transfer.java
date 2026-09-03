@@ -3,41 +3,40 @@ package io.wallet.entity;
 import com.github.f4b6a3.uuid.UuidCreator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(
-    name = "transfer",
+    name = "transfers",
     indexes = {
         @Index(
-            name = "idx_transfer_from_wallet_created_at",
+            name = "idx_transfers_from_wallet_created",
             columnList = "from_wallet_id, created_at, id"
         ),
         @Index(
-            name = "idx_transfer_to_wallet_created_at",
+            name = "idx_transfers_to_wallet_created",
             columnList = "to_wallet_id, created_at, id"
         ),
         @Index(
-            name = "idx_transfer_created_at",
-            columnList = "created_at"
+            name = "idx_transfers_created",
+            columnList = "created_at, id"
         )
     }
 )
 public class Transfer {
 
     @Id
-    @JdbcTypeCode(SqlTypes.BINARY)
     @Column(
         name = "id",
         nullable = false,
@@ -46,8 +45,9 @@ public class Transfer {
     )
     private UUID id;
 
-    @NotNull(message = "From wallet ID is required")
-    @JdbcTypeCode(SqlTypes.BINARY)
+    @NotNull(
+        message = "Source wallet ID is required"
+    )
     @Column(
         name = "from_wallet_id",
         nullable = false,
@@ -55,8 +55,9 @@ public class Transfer {
     )
     private UUID fromWalletId;
 
-    @NotNull(message = "To wallet ID is required")
-    @JdbcTypeCode(SqlTypes.BINARY)
+    @NotNull(
+        message = "Destination wallet ID is required"
+    )
     @Column(
         name = "to_wallet_id",
         nullable = false,
@@ -64,27 +65,37 @@ public class Transfer {
     )
     private UUID toWalletId;
 
-    @Positive(message = "Transfer amount must be greater than zero")
+    @Positive(
+        message = "Transfer amount must be positive"
+    )
     @Column(
         name = "amount_paise",
         nullable = false
     )
     private long amountPaise;
 
-    @NotNull(message = "Transfer creation time is required")
+    @NotNull(
+        message = "Transfer status is required"
+    )
+    @Enumerated(EnumType.STRING)
+    @Column(
+        name = "status",
+        nullable = false,
+        length = 20
+    )
+    private TransferStatus status;
+
+    @NotNull(
+        message = "Transfer creation timestamp is required"
+    )
     @Column(
         name = "created_at",
-        nullable = false,
-        updatable = false
+        nullable = false
     )
     private Instant createdAt;
 
-    @NotNull(message = "Transfer update time is required")
-    @Column(
-        name = "updated_at",
-        nullable = false
-    )
-    private Instant updatedAt;
+    @Column(name = "completed_at")
+    private Instant completedAt;
 
     protected Transfer() {
     }
@@ -97,6 +108,16 @@ public class Transfer {
         this.fromWalletId = fromWalletId;
         this.toWalletId = toWalletId;
         this.amountPaise = amountPaise;
+        this.status = TransferStatus.COMPLETED;
+    }
+
+    @AssertTrue(
+        message = "Source and destination wallets must be different"
+    )
+    public boolean hasDifferentWallets() {
+        return fromWalletId != null
+            && toWalletId != null
+            && !fromWalletId.equals(toWalletId);
     }
 
     @PrePersist
@@ -105,18 +126,18 @@ public class Transfer {
             id = UuidCreator.getTimeOrderedEpoch();
         }
 
-        Instant now = Instant.now();
-
         if (createdAt == null) {
-            createdAt = now;
+            createdAt = Instant.now();
         }
 
-        updatedAt = now;
-    }
+        if (status == null) {
+            status = TransferStatus.COMPLETED;
+        }
 
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = Instant.now();
+        if (status == TransferStatus.COMPLETED
+            && completedAt == null) {
+            completedAt = Instant.now();
+        }
     }
 
     public UUID getId() {
@@ -135,11 +156,15 @@ public class Transfer {
         return amountPaise;
     }
 
+    public TransferStatus getStatus() {
+        return status;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public Instant getUpdatedAt() {
-        return updatedAt;
+    public Instant getCompletedAt() {
+        return completedAt;
     }
 }

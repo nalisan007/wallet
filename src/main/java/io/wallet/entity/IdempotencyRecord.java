@@ -1,63 +1,51 @@
 package io.wallet.entity;
 
-import com.github.f4b6a3.uuid.UuidCreator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import jakarta.validation.constraints.Pattern;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(
-    name = "idempotency_record",
+    name = "idempotency_records",
     indexes = {
         @Index(
-            name = "idx_idempotency_record_key",
-            columnList = "idempotency_key"
+            name = "idx_idempotency_created_at",
+            columnList = "created_at"
         ),
         @Index(
-            name = "idx_idempotency_record_created_at",
-            columnList = "created_at"
+            name = "idx_idempotency_transfer",
+            columnList = "transfer_id"
         )
     }
 )
 public class IdempotencyRecord {
 
     @Id
-    @JdbcTypeCode(SqlTypes.BINARY)
+    @NotNull(
+        message = "Idempotency key is required"
+    )
     @Column(
-        name = "id",
+        name = "idempotency_key",
         nullable = false,
         updatable = false,
         columnDefinition = "BINARY(16)"
     )
-    private UUID id;
-
-    @NotNull(message = "Idempotency key is required")
-    @JdbcTypeCode(SqlTypes.BINARY)
-    @Column(
-        name = "idempotency_key",
-        nullable = false,
-        unique = true,
-        columnDefinition = "BINARY(16)"
-    )
     private UUID idempotencyKey;
 
-    @NotBlank(message = "Request hash is required")
-    @Size(
-        min = 64,
-        max = 64,
-        message = "Request hash must contain exactly 64 characters"
+    @NotBlank(
+        message = "Request hash is required"
+    )
+    @Pattern(
+        regexp = "^[0-9a-f]{64}$",
+        message = "Request hash must be a SHA-256 hexadecimal value"
     )
     @Column(
         name = "request_hash",
@@ -66,27 +54,20 @@ public class IdempotencyRecord {
     )
     private String requestHash;
 
-    @JdbcTypeCode(SqlTypes.BINARY)
     @Column(
         name = "transfer_id",
         columnDefinition = "BINARY(16)"
     )
     private UUID transferId;
 
-    @NotNull(message = "Idempotency record creation time is required")
+    @NotNull(
+        message = "Idempotency record creation timestamp is required"
+    )
     @Column(
         name = "created_at",
-        nullable = false,
-        updatable = false
-    )
-    private Instant createdAt;
-
-    @NotNull(message = "Idempotency record update time is required")
-    @Column(
-        name = "updated_at",
         nullable = false
     )
-    private Instant updatedAt;
+    private Instant createdAt;
 
     protected IdempotencyRecord() {
     }
@@ -97,30 +78,6 @@ public class IdempotencyRecord {
     ) {
         this.idempotencyKey = idempotencyKey;
         this.requestHash = requestHash;
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        if (id == null) {
-            id = UuidCreator.getTimeOrderedEpoch();
-        }
-
-        Instant now = Instant.now();
-
-        if (createdAt == null) {
-            createdAt = now;
-        }
-
-        updatedAt = now;
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = Instant.now();
-    }
-
-    public UUID getId() {
-        return id;
     }
 
     public UUID getIdempotencyKey() {
@@ -139,11 +96,11 @@ public class IdempotencyRecord {
         return createdAt;
     }
 
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
-
     public void setTransferId(UUID transferId) {
         this.transferId = transferId;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
     }
 }

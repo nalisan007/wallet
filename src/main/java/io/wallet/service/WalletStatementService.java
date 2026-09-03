@@ -28,7 +28,8 @@ public class WalletStatementService {
         LedgerTransactionRepository ledgerTransactionRepository
     ) {
         this.walletRepository = walletRepository;
-        this.ledgerTransactionRepository = ledgerTransactionRepository;
+        this.ledgerTransactionRepository =
+            ledgerTransactionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -45,9 +46,9 @@ public class WalletStatementService {
         validateDateRange(from, to);
 
         long openingBalancePaise =
-    ledgerTransactionRepository
-        .calculateOpeningBalancePaise(walletId, from)
-        .orElse(0L);
+            ledgerTransactionRepository
+                .calculateOpeningBalancePaise(walletId, from)
+                .orElse(0L);
 
         List<LedgerTransaction> transactions =
             ledgerTransactionRepository.findStatementEntries(

@@ -3,37 +3,32 @@ package io.wallet.entity;
 import com.github.f4b6a3.uuid.UuidCreator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(
-    name = "wallet",
+    name = "wallets",
     indexes = {
         @Index(
-            name = "idx_wallet_status",
+            name = "idx_wallets_status",
             columnList = "status"
-        ),
-        @Index(
-            name = "idx_wallet_created_at",
-            columnList = "created_at"
         )
     }
 )
 public class Wallet {
 
     @Id
-    @JdbcTypeCode(SqlTypes.BINARY)
     @Column(
         name = "id",
         nullable = false,
@@ -42,9 +37,9 @@ public class Wallet {
     )
     private UUID id;
 
-    @NotNull(message = "Wallet balance is required")
-    @PositiveOrZero(
-        message = "Wallet balance cannot be negative"
+    @Min(
+        value = 0,
+        message = "Balance cannot be negative"
     )
     @Column(
         name = "balance_paise",
@@ -52,7 +47,10 @@ public class Wallet {
     )
     private long balancePaise;
 
-    @NotNull(message = "Wallet status is required")
+    @NotNull(
+        message = "Wallet status is required"
+    )
+    @Enumerated(EnumType.STRING)
     @Column(
         name = "status",
         nullable = false,
@@ -60,15 +58,18 @@ public class Wallet {
     )
     private WalletStatus status;
 
-    @NotNull(message = "Wallet creation time is required")
+    @NotNull(
+        message = "Created timestamp is required"
+    )
     @Column(
         name = "created_at",
-        nullable = false,
-        updatable = false
+        nullable = false
     )
     private Instant createdAt;
 
-    @NotNull(message = "Wallet update time is required")
+    @NotNull(
+        message = "Updated timestamp is required"
+    )
     @Column(
         name = "updated_at",
         nullable = false
@@ -82,50 +83,8 @@ public class Wallet {
         long balancePaise,
         WalletStatus status
     ) {
-        if (balancePaise < 0) {
-            throw new IllegalArgumentException(
-                "Wallet balance cannot be negative"
-            );
-        }
-
         this.balancePaise = balancePaise;
         this.status = status;
-    }
-
-    public void debit(long amountPaise) {
-        if (amountPaise <= 0) {
-            throw new IllegalArgumentException(
-                "Debit amount must be greater than zero"
-            );
-        }
-
-        if (balancePaise < amountPaise) {
-            throw new IllegalArgumentException(
-                "Wallet balance cannot become negative"
-            );
-        }
-
-        balancePaise -= amountPaise;
-    }
-
-    public void credit(long amountPaise) {
-        if (amountPaise <= 0) {
-            throw new IllegalArgumentException(
-                "Credit amount must be greater than zero"
-            );
-        }
-
-        try {
-            balancePaise = Math.addExact(
-                balancePaise,
-                amountPaise
-            );
-        } catch (ArithmeticException exception) {
-            throw new IllegalArgumentException(
-                "Wallet balance exceeds the supported limit",
-                exception
-            );
-        }
     }
 
     @PrePersist
@@ -166,5 +125,31 @@ public class Wallet {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public void debit(long amountPaise) {
+        if (amountPaise <= 0) {
+            throw new IllegalArgumentException(
+                "Debit amount must be positive"
+            );
+        }
+
+        if (balancePaise < amountPaise) {
+            throw new IllegalArgumentException(
+                "Insufficient wallet balance"
+            );
+        }
+
+        balancePaise -= amountPaise;
+    }
+
+    public void credit(long amountPaise) {
+        if (amountPaise <= 0) {
+            throw new IllegalArgumentException(
+                "Credit amount must be positive"
+            );
+        }
+
+        balancePaise += amountPaise;
     }
 }

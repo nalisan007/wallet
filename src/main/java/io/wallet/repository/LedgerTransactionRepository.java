@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface LedgerTransactionRepository
@@ -42,7 +43,7 @@ public interface LedgerTransactionRepository
         WHERE l.walletId = :walletId
           AND l.createdAt < :from
         """)
-    java.util.Optional<Long>  calculateOpeningBalancePaise(
+    Optional<Long> calculateOpeningBalancePaise(
         @Param("walletId") UUID walletId,
         @Param("from") Instant from
     );
