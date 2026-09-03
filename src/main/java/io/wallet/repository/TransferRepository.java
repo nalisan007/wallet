@@ -10,14 +10,18 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-public interface TransferRepository extends JpaRepository<Transfer, UUID> {
+public interface TransferRepository
+    extends JpaRepository<Transfer, UUID> {
 
     @Query("""
         SELECT t
         FROM Transfer t
-        WHERE (t.fromWalletId = :walletId OR t.toWalletId = :walletId)
-          AND (:fromDate IS NULL OR t.createdAt >= :fromDate)
-          AND (:toDate IS NULL OR t.createdAt <= :toDate)
+        WHERE (t.fromWalletId = :walletId
+               OR t.toWalletId = :walletId)
+          AND (:fromDate IS NULL
+               OR t.createdAt >= :fromDate)
+          AND (:toDate IS NULL
+               OR t.createdAt <= :toDate)
           AND (
               :cursorCreatedAt IS NULL
               OR t.createdAt < :cursorCreatedAt

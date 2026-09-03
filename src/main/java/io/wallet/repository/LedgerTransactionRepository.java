@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface LedgerTransactionRepository
-        extends JpaRepository<LedgerTransaction, UUID> {
+    extends JpaRepository<LedgerTransaction, UUID> {
 
     @Query("""
         SELECT l
@@ -30,7 +30,8 @@ public interface LedgerTransactionRepository
         SELECT COALESCE(
             SUM(
                 CASE
-                    WHEN l.entryType = io.wallet.entity.LedgerEntryType.CREDIT
+                    WHEN l.entryType =
+                        io.wallet.entity.LedgerEntryType.CREDIT
                     THEN l.amountPaise
                     ELSE -l.amountPaise
                 END
@@ -44,5 +45,9 @@ public interface LedgerTransactionRepository
     Long calculateOpeningBalancePaise(
         @Param("walletId") UUID walletId,
         @Param("from") Instant from
+    );
+
+    List<LedgerTransaction> findByTransferIdOrderByIdAsc(
+        UUID transferId
     );
 }

@@ -8,8 +8,10 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -21,8 +23,16 @@ import java.util.UUID;
     name = "ledger_transaction",
     indexes = {
         @Index(
-            name = "idx_ledger_transaction_type_reference",
-            columnList = "transaction_type, reference_id"
+            name = "idx_ledger_transaction_wallet_created_at_id",
+            columnList = "wallet_id, created_at, id"
+        ),
+        @Index(
+            name = "idx_ledger_transaction_transfer_id",
+            columnList = "transfer_id"
+        ),
+        @Index(
+            name = "idx_ledger_transaction_created_at",
+            columnList = "created_at"
         )
     }
 )
@@ -38,24 +48,39 @@ public class LedgerTransaction {
     )
     private UUID id;
 
-    @NotNull(message = "Ledger transaction type is required")
-    @Enumerated(EnumType.STRING)
-    @Column(
-        name = "transaction_type",
-        nullable = false,
-        length = 20
-    )
-    private LedgerTransactionType transactionType;
-
-    @NotNull(message = "Ledger transaction reference ID is required")
+    @NotNull(message = "Wallet ID is required")
     @JdbcTypeCode(SqlTypes.BINARY)
     @Column(
-        name = "reference_id",
+        name = "wallet_id",
         nullable = false,
-        updatable = false,
         columnDefinition = "BINARY(16)"
     )
-    private UUID referenceId;
+    private UUID walletId;
+
+    @NotNull(message = "Transfer ID is required")
+    @JdbcTypeCode(SqlTypes.BINARY)
+    @Column(
+        name = "transfer_id",
+        nullable = false,
+        columnDefinition = "BINARY(16)"
+    )
+    private UUID transferId;
+
+    @NotNull(message = "Ledger entry type is required")
+    @Enumerated(EnumType.STRING)
+    @Column(
+        name = "entry_type",
+        nullable = false,
+        length = 10
+    )
+    private LedgerEntryType entryType;
+
+    @Positive(message = "Ledger amount must be greater than zero")
+    @Column(
+        name = "amount_paise",
+        nullable = false
+    )
+    private long amountPaise;
 
     @NotNull(message = "Ledger transaction creation time is required")
     @Column(
@@ -65,16 +90,32 @@ public class LedgerTransaction {
     )
     private Instant createdAt;
 
+    @NotNull(message = "Ledger transaction update time is required")
+    @Column(
+        name = "updated_at",
+        nullable = false
+    )
+    private Instant updatedAt;
+
     protected LedgerTransaction() {
-        // Required by JPA.
     }
 
     public LedgerTransaction(
-        LedgerTransactionType transactionType,
-        UUID referenceId
+        UUID walletId,
+        UUID transferId,
+        LedgerEntryType entryType,
+        long amountPaise
     ) {
-        this.transactionType = transactionType;
-        this.referenceId = referenceId;
+        if (amountPaise <= 0) {
+            throw new IllegalArgumentException(
+                "Ledger amount must be greater than zero"
+            );
+        }
+
+        this.walletId = walletId;
+        this.transferId = transferId;
+        this.entryType = entryType;
+        this.amountPaise = amountPaise;
     }
 
     @PrePersist
@@ -83,24 +124,45 @@ public class LedgerTransaction {
             id = UuidCreator.getTimeOrderedEpoch();
         }
 
+        Instant now = Instant.now();
+
         if (createdAt == null) {
-            createdAt = Instant.now();
+            createdAt = now;
         }
+
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = Instant.now();
     }
 
     public UUID getId() {
         return id;
     }
 
-    public LedgerTransactionType getTransactionType() {
-        return transactionType;
+    public UUID getWalletId() {
+        return walletId;
     }
 
-    public UUID getReferenceId() {
-        return referenceId;
+    public UUID getTransferId() {
+        return transferId;
+    }
+
+    public LedgerEntryType getEntryType() {
+        return entryType;
+    }
+
+    public long getAmountPaise() {
+        return amountPaise;
     }
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
     }
 }
