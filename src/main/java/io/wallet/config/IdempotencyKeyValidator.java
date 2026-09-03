@@ -1,6 +1,5 @@
 package io.wallet.config;
 
-import com.github.f4b6a3.uuid.UuidCreator;
 import io.wallet.exception.InvalidIdempotencyKeyException;
 
 import java.util.UUID;
@@ -10,29 +9,29 @@ public final class IdempotencyKeyValidator {
     private IdempotencyKeyValidator() {
     }
 
-    public static UUID parse(String idempotencyKey) {
-        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+    public static UUID parse(String value) {
+        if (value == null || value.isBlank()) {
             throw new InvalidIdempotencyKeyException(
                 "Idempotency-Key header is required"
             );
         }
 
-        final UUID parsedKey;
+        final UUID uuid;
 
         try {
-            parsedKey = UUID.fromString(idempotencyKey);
+            uuid = UUID.fromString(value);
         } catch (IllegalArgumentException exception) {
             throw new InvalidIdempotencyKeyException(
                 "Idempotency-Key must be a valid UUIDv7"
             );
         }
 
-        if (parsedKey.version() != 7) {
+        if (uuid.version() != 7) {
             throw new InvalidIdempotencyKeyException(
                 "Idempotency-Key must be a UUIDv7"
             );
         }
 
-        return parsedKey;
+        return uuid;
     }
 }

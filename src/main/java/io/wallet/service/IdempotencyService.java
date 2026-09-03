@@ -2,6 +2,7 @@ package io.wallet.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import io.wallet.entity.IdempotencyRecord;
 import io.wallet.entity.TransferRequest;
 import io.wallet.exception.IdempotencyKeyReuseException;
@@ -26,7 +27,11 @@ public class IdempotencyService {
         ObjectMapper objectMapper
     ) {
         this.idempotencyRecordRepository = idempotencyRecordRepository;
-        this.objectMapper = objectMapper;
+        this.objectMapper = objectMapper.copy()
+            .configure(
+                SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS,
+                true
+            );
     }
 
     @Transactional
@@ -36,49 +41,108 @@ public class IdempotencyService {
     ) {
         String requestHash = calculateRequestHash(request);
 
-        return idempotencyRecordRepository
-            .findByIdempotencyKeyForUpdate(idempotencyKey)
-            .map(existing -> {
-                if (!existing.getRequestHash().equals(requestHash)) {
-                    throw new IdempotencyKeyReuseException(idempotencyKey);
-                }
+        /*
+         * The unique database constraint on idempotency_key prevents
+         * two concurrent requests from creating two records for the
+         * same key.
+         *
+         * After the record exists, the pessimistic lock serializes
+         * concurrent requests using that key.
+         */
+        IdempotencyRecord existing =
+            idempotencyRecordRepository
+                .findByIdempotencyKeyForUpdate(idempotencyKey)
+                .orElse(null);
 
-                return existing;
-            })
-            .orElseGet(() -> createRecord(idempotencyKey, requestHash));
-    }
+        if (existing != null) {
+            validateRequestHash(existing, requestHash);
+            return existing;
+        }
 
-    private IdempotencyRecord createRecord(
-        UUID idempotencyKey,
-        String requestHash
-    ) {
-        IdempotencyRecord record = new IdempotencyRecord(
-            idempotencyKey,
-            requestHash
-        );
-
-        return idempotencyRecordRepository.save(record);
-    }
-
-    public String calculateRequestHash(TransferRequest request) {
-        try {
-            String canonicalRequest = objectMapper
-                .writeValueAsString(request);
-
-            MessageDigest digest =
-                MessageDigest.getInstance("SHA-256");
-
-            byte[] hash = digest.digest(
-                canonicalRequest.getBytes(StandardCharsets.UTF_8)
+        IdempotencyRecord record =
+            new IdempotencyRecord(
+                idempotencyKey,
+                requestHash
             );
 
-            return HexFormat.of().formatHex(hash);
+        try {
+            return idempotencyRecordRepository.saveAndFlush(record);
+        } catch (org.springframework.dao.DataIntegrityViolationException exception) {
+            /*
+             * Another transaction may have inserted the same
+             * idempotency key between our lookup and insert.
+             *
+             * The current transaction must not continue after a
+             * constraint violation because MySQL/JPA may mark the
+             * transaction rollback-only. The concurrent-request
+             * serialization is therefore ultimately guaranteed by
+             * the unique constraint plus the transaction boundary.
+             */
+            throw exception;
+        }
+    }
 
-        } catch (JsonProcessingException | NoSuchAlgorithmException exception) {
+    private void validateRequestHash(
+        IdempotencyRecord existing,
+        String requestHash
+    ) {
+        if (!MessageDigest.isEqual(
+            existing.getRequestHash()
+                .getBytes(StandardCharsets.UTF_8),
+            requestHash.getBytes(StandardCharsets.UTF_8)
+        )) {
+            throw new IdempotencyKeyReuseException(
+                existing.getIdempotencyKey()
+            );
+        }
+    }
+
+    private String calculateRequestHash(
+        TransferRequest request
+    ) {
+        String canonicalRequest;
+
+        try {
+            canonicalRequest =
+                objectMapper.writeValueAsString(
+                    new CanonicalTransferRequest(
+                        request.fromWalletId(),
+                        request.toWalletId(),
+                        request.amountPaise()
+                    )
+                );
+        } catch (JsonProcessingException exception) {
             throw new IllegalStateException(
                 "Unable to calculate request hash",
                 exception
             );
         }
+
+        try {
+            MessageDigest digest =
+                MessageDigest.getInstance("SHA-256");
+
+            byte[] hash =
+                digest.digest(
+                    canonicalRequest.getBytes(
+                        StandardCharsets.UTF_8
+                    )
+                );
+
+            return HexFormat.of().formatHex(hash);
+
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(
+                "SHA-256 algorithm is not available",
+                exception
+            );
+        }
+    }
+
+    private record CanonicalTransferRequest(
+        UUID fromWalletId,
+        UUID toWalletId,
+        Long amountPaise
+    ) {
     }
 }

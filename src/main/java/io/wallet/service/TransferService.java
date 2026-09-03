@@ -26,23 +26,121 @@ import java.util.UUID;
 public class TransferService {
 
     private static final int DEFAULT_LIMIT = 20;
-    private static final int MAX_LIMIT = 100;
 
     private final TransferRepository transferRepository;
     private final WalletRepository walletRepository;
     private final IdempotencyService idempotencyService;
     private final CursorService cursorService;
+    private final TransferLedgerService transferLedgerService;
 
     public TransferService(
         TransferRepository transferRepository,
         WalletRepository walletRepository,
         IdempotencyService idempotencyService,
-        CursorService cursorService
+        CursorService cursorService,
+        TransferLedgerService transferLedgerService
     ) {
         this.transferRepository = transferRepository;
         this.walletRepository = walletRepository;
         this.idempotencyService = idempotencyService;
         this.cursorService = cursorService;
+        this.transferLedgerService = transferLedgerService;
+    }
+
+    @Transactional
+    public TransferResponse createTransfer(
+        UUID idempotencyKey,
+        TransferRequest request
+    ) {
+        IdempotencyRecord idempotencyRecord =
+            idempotencyService.findExistingOrCreate(
+                idempotencyKey,
+                request
+            );
+
+        if (idempotencyRecord.getTransferId() != null) {
+            return transferRepository
+                .findById(idempotencyRecord.getTransferId())
+                .map(this::toResponse)
+                .orElseThrow(() ->
+                    new IllegalStateException(
+                        "Idempotent transfer result is missing"
+                    )
+                );
+        }
+
+        UUID fromWalletId = request.fromWalletId();
+        UUID toWalletId = request.toWalletId();
+        long amountPaise = request.amountPaise();
+
+        if (fromWalletId.equals(toWalletId)) {
+            throw new SelfTransferException(fromWalletId);
+        }
+
+        UUID firstWalletId;
+        UUID secondWalletId;
+
+        if (fromWalletId.compareTo(toWalletId) < 0) {
+            firstWalletId = fromWalletId;
+            secondWalletId = toWalletId;
+        } else {
+            firstWalletId = toWalletId;
+            secondWalletId = fromWalletId;
+        }
+
+        Wallet firstWallet = walletRepository
+            .findByIdForUpdate(firstWalletId)
+            .orElseThrow(() ->
+                new WalletNotFoundException(firstWalletId)
+            );
+
+        Wallet secondWallet = walletRepository
+            .findByIdForUpdate(secondWalletId)
+            .orElseThrow(() ->
+                new WalletNotFoundException(secondWalletId)
+            );
+
+        Wallet fromWallet = fromWalletId.equals(firstWallet.getId())
+            ? firstWallet
+            : secondWallet;
+
+        Wallet toWallet = toWalletId.equals(firstWallet.getId())
+            ? firstWallet
+            : secondWallet;
+
+        validateWallets(fromWallet, toWallet);
+
+        long senderBalance = fromWallet.getBalancePaise();
+
+        if (amountPaise > senderBalance) {
+            throw new InsufficientBalanceException(
+                fromWallet.getId(),
+                amountPaise,
+                senderBalance
+            );
+        }
+
+        fromWallet.debit(amountPaise);
+        toWallet.credit(amountPaise);
+
+        Transfer transfer = new Transfer(
+            fromWalletId,
+            toWalletId,
+            amountPaise
+        );
+
+        Transfer savedTransfer =
+            transferRepository.save(transfer);
+
+        transferLedgerService.createLedgerEntries(
+            savedTransfer
+        );
+
+        idempotencyRecord.setTransferId(
+            savedTransfer.getId()
+        );
+
+        return toResponse(savedTransfer);
     }
 
     @Transactional(readOnly = true)
@@ -54,23 +152,27 @@ public class TransferService {
         String cursor
     ) {
         walletRepository.findById(walletId)
-            .orElseThrow(() -> new WalletNotFoundException(walletId));
+            .orElseThrow(() ->
+                new WalletNotFoundException(walletId)
+            );
 
         validateDateRange(from, to);
 
-        int requestedLimit = limit == null
-            ? DEFAULT_LIMIT
-            : limit;
+        int requestedLimit =
+            limit == null ? DEFAULT_LIMIT : limit;
 
-        Cursor decodedCursor = cursorService.decode(cursor);
+        Cursor decodedCursor =
+            cursorService.decode(cursor);
 
-        Instant cursorCreatedAt = decodedCursor == null
-            ? null
-            : decodedCursor.createdAt();
+        Instant cursorCreatedAt =
+            decodedCursor == null
+                ? null
+                : decodedCursor.createdAt();
 
-        UUID cursorId = decodedCursor == null
-            ? null
-            : decodedCursor.id();
+        UUID cursorId =
+            decodedCursor == null
+                ? null
+                : decodedCursor.id();
 
         List<Transfer> transfers =
             transferRepository.findWalletTransfers(
@@ -117,99 +219,21 @@ public class TransferService {
         );
     }
 
-    @Transactional
-    public TransferResponse createTransfer(
-        UUID idempotencyKey,
-        TransferRequest request
+    private void validateWallets(
+        Wallet fromWallet,
+        Wallet toWallet
     ) {
-        IdempotencyRecord idempotencyRecord =
-            idempotencyService.findExistingOrCreate(
-                idempotencyKey,
-                request
-            );
-
-        if (idempotencyRecord.getTransferId() != null) {
-            return transferRepository
-                .findById(idempotencyRecord.getTransferId())
-                .map(this::toResponse)
-                .orElseThrow(() ->
-                    new IllegalStateException(
-                        "Idempotent transfer result is missing"
-                    )
-                );
-        }
-
-        UUID fromWalletId = request.fromWalletId();
-        UUID toWalletId = request.toWalletId();
-        long amountPaise = request.amountPaise();
-
-        if (fromWalletId.equals(toWalletId)) {
-            throw new SelfTransferException(fromWalletId);
-        }
-
-        UUID firstWalletId = fromWalletId.compareTo(toWalletId) < 0
-            ? fromWalletId
-            : toWalletId;
-
-        UUID secondWalletId = fromWalletId.compareTo(toWalletId) < 0
-            ? toWalletId
-            : fromWalletId;
-
-        Wallet firstWallet = walletRepository
-            .findByIdForUpdate(firstWalletId)
-            .orElseThrow(() ->
-                new WalletNotFoundException(firstWalletId)
-            );
-
-        Wallet secondWallet = walletRepository
-            .findByIdForUpdate(secondWalletId)
-            .orElseThrow(() ->
-                new WalletNotFoundException(secondWalletId)
-            );
-
-        Wallet fromWallet = fromWalletId.equals(firstWallet.getId())
-            ? firstWallet
-            : secondWallet;
-
-        Wallet toWallet = toWalletId.equals(firstWallet.getId())
-            ? firstWallet
-            : secondWallet;
-
         if (!fromWallet.getStatus().isActive()) {
-            throw new WalletInactiveException(fromWallet.getId());
+            throw new WalletInactiveException(
+                fromWallet.getId()
+            );
         }
 
         if (!toWallet.getStatus().isActive()) {
-            throw new WalletInactiveException(toWallet.getId());
-        }
-
-        long senderBalance = fromWallet.getBalancePaise();
-
-        if (amountPaise > senderBalance) {
-            throw new InsufficientBalanceException(
-                fromWallet.getId(),
-                amountPaise,
-                senderBalance
+            throw new WalletInactiveException(
+                toWallet.getId()
             );
         }
-
-        fromWallet.debit(amountPaise);
-        toWallet.credit(amountPaise);
-
-        Transfer transfer = new Transfer(
-            fromWalletId,
-            toWalletId,
-            amountPaise
-        );
-
-        Transfer savedTransfer =
-            transferRepository.save(transfer);
-
-        idempotencyRecord.setTransferId(
-            savedTransfer.getId()
-        );
-
-        return toResponse(savedTransfer);
     }
 
     private void validateDateRange(
@@ -221,7 +245,9 @@ public class TransferService {
         }
     }
 
-    private TransferResponse toResponse(Transfer transfer) {
+    private TransferResponse toResponse(
+        Transfer transfer
+    ) {
         return new TransferResponse(
             transfer.getId(),
             transfer.getFromWalletId(),
