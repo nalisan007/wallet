@@ -22,6 +22,10 @@ import java.util.UUID;
     name = "idempotency_record",
     indexes = {
         @Index(
+            name = "idx_idempotency_record_key",
+            columnList = "idempotency_key"
+        ),
+        @Index(
             name = "idx_idempotency_record_created_at",
             columnList = "created_at"
         )
@@ -40,13 +44,13 @@ public class IdempotencyRecord {
     private UUID id;
 
     @NotNull(message = "Idempotency key is required")
+    @JdbcTypeCode(SqlTypes.BINARY)
     @Column(
         name = "idempotency_key",
         nullable = false,
         unique = true,
         columnDefinition = "BINARY(16)"
     )
-    @JdbcTypeCode(SqlTypes.BINARY)
     private UUID idempotencyKey;
 
     @NotBlank(message = "Request hash is required")

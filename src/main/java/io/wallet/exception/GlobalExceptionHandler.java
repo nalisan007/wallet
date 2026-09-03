@@ -235,4 +235,15 @@ public class GlobalExceptionHandler {
             .status(status)
             .body(response);
     }
+    @ExceptionHandler(InvalidIdempotencyKeyException.class)
+public ResponseEntity<ErrorResponse> handleInvalidIdempotencyKey(
+    InvalidIdempotencyKeyException exception
+) {
+    return buildResponse(
+        HttpStatus.BAD_REQUEST,
+        "INVALID_IDEMPOTENCY_KEY",
+        exception.getMessage(),
+        null
+    );
+}
 }
