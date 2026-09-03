@@ -1,4 +1,4 @@
-package io.wallet.entity;
+package io.wallet.config;
 
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;

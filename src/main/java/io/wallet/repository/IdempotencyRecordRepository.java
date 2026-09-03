@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
-@Repository
+
 public interface IdempotencyRecordRepository
         extends JpaRepository<IdempotencyRecord, UUID> {
 

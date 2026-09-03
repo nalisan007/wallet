@@ -1,5 +1,6 @@
-package io.wallet.entity;
+package io.wallet.config;
 
+import io.wallet.entity.TransferRequest;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
