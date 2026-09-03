@@ -1,0 +1,17 @@
+package io.wallet.exception;
+
+import java.util.UUID;
+
+public class WalletInactiveException extends RuntimeException {
+
+    private final UUID walletId;
+
+    public WalletInactiveException(UUID walletId) {
+        super("Wallet is inactive: " + walletId);
+        this.walletId = walletId;
+    }
+
+    public UUID getWalletId() {
+        return walletId;
+    }
+}
