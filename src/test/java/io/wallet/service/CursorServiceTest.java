@@ -13,71 +13,51 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class CursorServiceTest {
 
-    private final CursorService cursorService =
-        new CursorService(new ObjectMapper());
+    private final CursorService service =
+        new CursorService(
+            new ObjectMapper()
+        );
 
     @Test
     void shouldEncodeAndDecodeCursor() {
+        Cursor original =
+            new Cursor(
+                Instant.parse(
+                    "2026-09-03T10:15:30Z"
+                ),
+                UUID.randomUUID()
+            );
 
-        Cursor cursor = new Cursor(
-            Instant.parse("2026-01-01T10:00:00Z"),
-            UUID.fromString(
-                "019c0000-0000-7000-8000-000000000001"
-            )
-        );
-
-        String encoded = cursorService.encode(cursor);
+        String encoded =
+            service.encode(original);
 
         Cursor decoded =
-            cursorService.decode(encoded);
+            service.decode(encoded);
 
         assertEquals(
-            cursor.createdAt(),
+            original.createdAt(),
             decoded.createdAt()
         );
 
         assertEquals(
-            cursor.id(),
+            original.id(),
             decoded.id()
         );
     }
 
     @Test
-    void shouldReturnNullForMissingCursor() {
-
-        assertEquals(
-            null,
-            cursorService.decode(null)
-        );
-
-        assertEquals(
-            null,
-            cursorService.decode("")
-        );
-    }
-
-    @Test
     void shouldRejectMalformedCursor() {
-
         assertThrows(
             InvalidCursorException.class,
-            () -> cursorService.decode("invalid-cursor")
+            () -> service.decode("not-a-valid-cursor")
         );
     }
 
     @Test
-    void shouldRejectCursorWithNonUuidV7Id() {
-
-        Cursor cursor = new Cursor(
-            Instant.parse("2026-01-01T10:00:00Z"),
-            UUID.randomUUID()
-        );
-
-        String encoded = cursorService.encode(cursor);
-
+    void shouldRejectEmptyCursor() {
         assertThrows(
             InvalidCursorException.class,
-            () -> cursorService.decode(encoded)
+            () -> service.decode("")
         );
     }
 }

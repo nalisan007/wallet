@@ -1,10 +1,14 @@
 package io.wallet.exception;
 
-public class InvalidIdempotencyKeyException extends RuntimeException {
+public class InvalidIdempotencyKeyException
+    extends RuntimeException {
 
     private final String message;
 
-    public InvalidIdempotencyKeyException(String message) {
+    public InvalidIdempotencyKeyException(
+        String message
+    ) {
+        super(message);
         this.message = message;
     }
 

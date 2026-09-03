@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.UUID;
 
 @Service
 public class CursorService {
@@ -20,29 +19,41 @@ public class CursorService {
     }
 
     public String encode(Cursor cursor) {
+        if (cursor == null
+            || cursor.createdAt() == null
+            || cursor.id() == null) {
+            throw new InvalidCursorException(
+                "Cursor cannot be null"
+            );
+        }
+
         try {
-            byte[] json = objectMapper.writeValueAsBytes(cursor);
+            byte[] json =
+                objectMapper.writeValueAsBytes(cursor);
 
             return Base64.getUrlEncoder()
                 .withoutPadding()
                 .encodeToString(json);
 
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException(
-                "Unable to encode cursor",
-                exception
+            throw new InvalidCursorException(
+                "Unable to encode cursor"
             );
         }
     }
 
     public Cursor decode(String encodedCursor) {
-        if (encodedCursor == null || encodedCursor.isBlank()) {
-            return null;
+        if (encodedCursor == null
+            || encodedCursor.isBlank()) {
+            throw new InvalidCursorException(
+                "Cursor cannot be empty"
+            );
         }
 
         try {
             byte[] decoded =
-                Base64.getUrlDecoder().decode(encodedCursor);
+                Base64.getUrlDecoder()
+                    .decode(encodedCursor);
 
             Cursor cursor =
                 objectMapper.readValue(
@@ -50,28 +61,21 @@ public class CursorService {
                     Cursor.class
                 );
 
-            validate(cursor);
+            if (cursor.createdAt() == null
+                || cursor.id() == null) {
+                throw new InvalidCursorException(
+                    "Cursor is missing required fields"
+                );
+            }
 
             return cursor;
 
         } catch (
-            IllegalArgumentException |
-            JsonProcessingException exception
+            IllegalArgumentException
+                | JsonProcessingException exception
         ) {
             throw new InvalidCursorException(
-                "Cursor is malformed or invalid"
-            );
-        }
-    }
-
-    private void validate(Cursor cursor) {
-        if (cursor == null
-            || cursor.createdAt() == null
-            || cursor.id() == null
-            || cursor.id().version() != 7) {
-
-            throw new InvalidCursorException(
-                "Cursor contains invalid pagination data"
+                "Invalid cursor"
             );
         }
     }

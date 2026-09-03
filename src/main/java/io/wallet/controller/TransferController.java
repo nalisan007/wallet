@@ -1,43 +1,61 @@
 package io.wallet.controller;
 
-import io.wallet.config.IdempotencyKeyValidator;
 import io.wallet.entity.TransferHistoryResponse;
 import io.wallet.entity.TransferRequest;
 import io.wallet.entity.TransferResponse;
+import io.wallet.exception.InvalidIdempotencyKeyException;
+import io.wallet.service.TransferHistoryService;
 import io.wallet.service.TransferService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
 import java.time.Instant;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api/v1/wallets")
+@Validated
 public class TransferController {
 
     private final TransferService transferService;
+    private final TransferHistoryService transferHistoryService;
 
-    public TransferController(TransferService transferService) {
+    public TransferController(
+        TransferService transferService,
+        TransferHistoryService transferHistoryService
+    ) {
         this.transferService = transferService;
+        this.transferHistoryService = transferHistoryService;
     }
 
-    @PostMapping("/transfers")
+    @PostMapping("/{walletId}/transfers")
     public ResponseEntity<TransferResponse> createTransfer(
-        @RequestHeader("Idempotency-Key")
+        @PathVariable
+        @NotNull(
+            message = "Wallet ID is required"
+        )
+        UUID walletId,
+
+        @RequestHeader(
+            value = "Idempotency-Key",
+            required = true
+        )
         String idempotencyKey,
 
         @Valid
         @RequestBody
         TransferRequest request
     ) {
+        validateWalletId(walletId, request);
+
         UUID parsedIdempotencyKey =
-            IdempotencyKeyValidator.parse(idempotencyKey);
+            parseIdempotencyKey(idempotencyKey);
 
         TransferResponse response =
             transferService.createTransfer(
@@ -46,44 +64,75 @@ public class TransferController {
             );
 
         return ResponseEntity
-            .created(
-                URI.create(
-                    "/api/v1/transfers/" + response.id()
-                )
-            )
+            .status(HttpStatus.CREATED)
             .body(response);
     }
 
-    @GetMapping("/wallets/{walletId}/transfers")
+    @GetMapping("/{walletId}/transfers")
     public ResponseEntity<TransferHistoryResponse> getTransferHistory(
         @PathVariable
-        @NotNull(message = "Wallet ID is required")
+        @NotNull(
+            message = "Wallet ID is required"
+        )
         UUID walletId,
 
         @RequestParam(required = false)
-        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         Instant from,
 
         @RequestParam(required = false)
-        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         Instant to,
 
-        @RequestParam(required = false, defaultValue = "20")
-        @Min(value = 1, message = "Limit must be at least 1")
-        @Max(value = 100, message = "Limit must not exceed 100")
-        Integer limit,
-
         @RequestParam(required = false)
-        String cursor
+        String cursor,
+
+        @RequestParam(defaultValue = "20")
+        @Min(
+            value = 1,
+            message = "Limit must be at least 1"
+        )
+        @Max(
+            value = 100,
+            message = "Limit must not exceed 100"
+        )
+        int limit
     ) {
         return ResponseEntity.ok(
-            transferService.getTransfers(
+            transferHistoryService.getHistory(
                 walletId,
                 from,
                 to,
-                limit,
-                cursor
+                cursor,
+                limit
             )
         );
+    }
+
+    private void validateWalletId(
+        UUID walletId,
+        TransferRequest request
+    ) {
+        if (!walletId.equals(request.fromWalletId())) {
+            throw new IllegalArgumentException(
+                "Source wallet ID must match the wallet ID in the URL"
+            );
+        }
+    }
+
+    private UUID parseIdempotencyKey(
+        String value
+    ) {
+        if (value == null || value.isBlank()) {
+            throw new InvalidIdempotencyKeyException(
+                "Idempotency-Key header is required"
+            );
+        }
+
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException exception) {
+            throw new InvalidIdempotencyKeyException(
+                "Idempotency-Key must be a valid UUID"
+            );
+        }
     }
 }

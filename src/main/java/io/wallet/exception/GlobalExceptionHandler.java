@@ -1,15 +1,12 @@
 package io.wallet.exception;
 
 import jakarta.validation.ConstraintViolationException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -19,21 +16,30 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidation(
+    public ResponseEntity<ApiError> handleMethodArgumentNotValid(
         MethodArgumentNotValidException exception
     ) {
         Map<String, String> errors = new LinkedHashMap<>();
 
-        for (FieldError fieldError : exception.getBindingResult()
-            .getFieldErrors()) {
-
-            errors.put(
-                fieldError.getField(),
-                fieldError.getDefaultMessage()
+        exception.getBindingResult()
+            .getFieldErrors()
+            .forEach(error ->
+                errors.put(
+                    error.getField(),
+                    error.getDefaultMessage()
+                )
             );
-        }
 
-        return buildResponse(
+        exception.getBindingResult()
+            .getGlobalErrors()
+            .forEach(error ->
+                errors.put(
+                    error.getObjectName(),
+                    error.getDefaultMessage()
+                )
+            );
+
+        return response(
             HttpStatus.BAD_REQUEST,
             "VALIDATION_ERROR",
             "Request validation failed",
@@ -42,19 +48,20 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleConstraintViolation(
+    public ResponseEntity<ApiError> handleConstraintViolation(
         ConstraintViolationException exception
     ) {
         Map<String, String> errors = new LinkedHashMap<>();
 
-        exception.getConstraintViolations().forEach(violation ->
-            errors.put(
-                violation.getPropertyPath().toString(),
-                violation.getMessage()
-            )
-        );
+        exception.getConstraintViolations()
+            .forEach(violation ->
+                errors.put(
+                    violation.getPropertyPath().toString(),
+                    violation.getMessage()
+                )
+            );
 
-        return buildResponse(
+        return response(
             HttpStatus.BAD_REQUEST,
             "VALIDATION_ERROR",
             "Request validation failed",
@@ -62,179 +69,161 @@ public class GlobalExceptionHandler {
         );
     }
 
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ErrorResponse> handleTypeMismatch(
-        MethodArgumentTypeMismatchException exception
-    ) {
-        return buildResponse(
-            HttpStatus.BAD_REQUEST,
-            "INVALID_PARAMETER",
-            "Invalid value for parameter: "
-                + exception.getName(),
-            null
-        );
-    }
-
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleUnreadableRequest(
+    public ResponseEntity<ApiError> handleMalformedRequest(
         HttpMessageNotReadableException exception
     ) {
-        return buildResponse(
+        return response(
             HttpStatus.BAD_REQUEST,
-            "INVALID_REQUEST_BODY",
-            "Request body is malformed or contains an invalid value",
-            null
-        );
-    }
-
-    @ExceptionHandler(InvalidIdempotencyKeyException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidIdempotencyKey(
-        InvalidIdempotencyKeyException exception
-    ) {
-        return buildResponse(
-            HttpStatus.BAD_REQUEST,
-            "INVALID_IDEMPOTENCY_KEY",
-            exception.getMessage(),
-            null
-        );
-    }
-
-    @ExceptionHandler(IdempotencyKeyReuseException.class)
-    public ResponseEntity<ErrorResponse> handleIdempotencyKeyReuse(
-        IdempotencyKeyReuseException exception
-    ) {
-        return buildResponse(
-            HttpStatus.CONFLICT,
-            "IDEMPOTENCY_KEY_REUSE",
-            exception.getMessage(),
-            null
-        );
-    }
-
-    @ExceptionHandler(InvalidCursorException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidCursor(
-        InvalidCursorException exception
-    ) {
-        return buildResponse(
-            HttpStatus.BAD_REQUEST,
-            "INVALID_CURSOR",
-            exception.getMessage(),
-            null
-        );
-    }
-
-    @ExceptionHandler(InvalidDateRangeException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidDateRange(
-        InvalidDateRangeException exception
-    ) {
-        return buildResponse(
-            HttpStatus.BAD_REQUEST,
-            "INVALID_DATE_RANGE",
-            exception.getMessage(),
-            null
+            "MALFORMED_REQUEST",
+            "Request body is invalid",
+            Map.of()
         );
     }
 
     @ExceptionHandler(WalletNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleWalletNotFound(
+    public ResponseEntity<ApiError> handleWalletNotFound(
         WalletNotFoundException exception
     ) {
-        return buildResponse(
+        return response(
             HttpStatus.NOT_FOUND,
             "WALLET_NOT_FOUND",
             exception.getMessage(),
-            null
+            Map.of()
         );
     }
 
     @ExceptionHandler(WalletInactiveException.class)
-    public ResponseEntity<ErrorResponse> handleWalletInactive(
+    public ResponseEntity<ApiError> handleWalletInactive(
         WalletInactiveException exception
     ) {
-        return buildResponse(
+        return response(
             HttpStatus.CONFLICT,
             "WALLET_INACTIVE",
             exception.getMessage(),
-            null
-        );
-    }
-
-    @ExceptionHandler(SelfTransferException.class)
-    public ResponseEntity<ErrorResponse> handleSelfTransfer(
-        SelfTransferException exception
-    ) {
-        return buildResponse(
-            HttpStatus.BAD_REQUEST,
-            "SELF_TRANSFER_NOT_ALLOWED",
-            exception.getMessage(),
-            null
+            Map.of()
         );
     }
 
     @ExceptionHandler(InsufficientBalanceException.class)
-    public ResponseEntity<ErrorResponse> handleInsufficientBalance(
+    public ResponseEntity<ApiError> handleInsufficientBalance(
         InsufficientBalanceException exception
     ) {
-        return buildResponse(
-            HttpStatus.CONFLICT,
+        return response(
+            HttpStatus.UNPROCESSABLE_ENTITY,
             "INSUFFICIENT_BALANCE",
             exception.getMessage(),
-            null
+            Map.of()
         );
     }
 
-    @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
-        DataIntegrityViolationException exception
+    @ExceptionHandler(SelfTransferException.class)
+    public ResponseEntity<ApiError> handleSelfTransfer(
+        SelfTransferException exception
     ) {
-        return buildResponse(
+        return response(
+            HttpStatus.UNPROCESSABLE_ENTITY,
+            "SELF_TRANSFER",
+            exception.getMessage(),
+            Map.of()
+        );
+    }
+
+    @ExceptionHandler(IdempotencyKeyReuseException.class)
+    public ResponseEntity<ApiError> handleIdempotencyKeyReuse(
+        IdempotencyKeyReuseException exception
+    ) {
+        return response(
             HttpStatus.CONFLICT,
-            "DATA_INTEGRITY_VIOLATION",
-            "The operation violates a database constraint",
-            null
+            "IDEMPOTENCY_KEY_REUSE",
+            exception.getMessage(),
+            Map.of()
+        );
+    }
+
+    @ExceptionHandler(InvalidIdempotencyKeyException.class)
+    public ResponseEntity<ApiError> handleInvalidIdempotencyKey(
+        InvalidIdempotencyKeyException exception
+    ) {
+        return response(
+            HttpStatus.BAD_REQUEST,
+            "INVALID_IDEMPOTENCY_KEY",
+            exception.getMessage(),
+            Map.of()
+        );
+    }
+
+    @ExceptionHandler(InvalidCursorException.class)
+    public ResponseEntity<ApiError> handleInvalidCursor(
+        InvalidCursorException exception
+    ) {
+        return response(
+            HttpStatus.BAD_REQUEST,
+            "INVALID_CURSOR",
+            exception.getMessage(),
+            Map.of()
+        );
+    }
+
+    @ExceptionHandler(InvalidDateRangeException.class)
+    public ResponseEntity<ApiError> handleInvalidDateRange(
+        InvalidDateRangeException exception
+    ) {
+        return response(
+            HttpStatus.BAD_REQUEST,
+            "INVALID_DATE_RANGE",
+            exception.getMessage(),
+            Map.of()
         );
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+    public ResponseEntity<ApiError> handleIllegalArgument(
         IllegalArgumentException exception
     ) {
-        return buildResponse(
+        return response(
             HttpStatus.BAD_REQUEST,
-            "INVALID_REQUEST",
+            "BAD_REQUEST",
             exception.getMessage(),
-            null
+            Map.of()
         );
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleUnexpectedException(
+    public ResponseEntity<ApiError> handleUnexpectedException(
         Exception exception
     ) {
-        return buildResponse(
+        return response(
             HttpStatus.INTERNAL_SERVER_ERROR,
             "INTERNAL_SERVER_ERROR",
             "An unexpected error occurred",
-            null
+            Map.of()
         );
     }
 
-    private ResponseEntity<ErrorResponse> buildResponse(
+    private ResponseEntity<ApiError> response(
         HttpStatus status,
         String code,
         String message,
         Map<String, String> details
     ) {
-        ErrorResponse response = new ErrorResponse(
-            Instant.now(),
-            status.value(),
-            code,
-            message,
-            details
-        );
-
         return ResponseEntity
             .status(status)
-            .body(response);
+            .body(
+                new ApiError(
+                    code,
+                    message,
+                    details,
+                    Instant.now()
+                )
+            );
+    }
+
+    public record ApiError(
+        String code,
+        String message,
+        Map<String, String> details,
+        Instant timestamp
+    ) {
     }
 }
