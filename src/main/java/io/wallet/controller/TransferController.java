@@ -10,51 +10,53 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/transfers")
-@Validated
+@RequestMapping("/api/v1")
 public class TransferController {
 
     private final TransferService transferService;
 
-    public TransferController(
-        TransferService transferService
-    ) {
+    public TransferController(TransferService transferService) {
         this.transferService = transferService;
     }
 
-    @PostMapping
+    @PostMapping("/transfers")
     public ResponseEntity<TransferResponse> createTransfer(
-        @RequestHeader(
-            value = "Idempotency-Key",
-            required = false
-        )
+        @RequestHeader("Idempotency-Key")
         String idempotencyKey,
 
-        @Valid @RequestBody TransferRequest request
+        @Valid
+        @RequestBody
+        TransferRequest request
     ) {
+        UUID parsedIdempotencyKey =
+            IdempotencyKeyValidator.parse(idempotencyKey);
+
         TransferResponse response =
             transferService.createTransfer(
-                IdempotencyKeyValidator.parse(idempotencyKey),
+                parsedIdempotencyKey,
                 request
             );
 
         return ResponseEntity
-            .status(HttpStatus.CREATED)
+            .created(
+                URI.create(
+                    "/api/v1/transfers/" + response.id()
+                )
+            )
             .body(response);
     }
 
-    @GetMapping
-    public ResponseEntity<TransferHistoryResponse> getTransfers(
-        @RequestParam
+    @GetMapping("/wallets/{walletId}/transfers")
+    public ResponseEntity<TransferHistoryResponse> getTransferHistory(
+        @PathVariable
         @NotNull(message = "Wallet ID is required")
         UUID walletId,
 
@@ -66,29 +68,22 @@ public class TransferController {
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         Instant to,
 
-        @RequestParam(required = false)
-        @Min(
-            value = 1,
-            message = "Limit must be at least 1"
-        )
-        @Max(
-            value = 100,
-            message = "Limit must not exceed 100"
-        )
+        @RequestParam(required = false, defaultValue = "20")
+        @Min(value = 1, message = "Limit must be at least 1")
+        @Max(value = 100, message = "Limit must not exceed 100")
         Integer limit,
 
         @RequestParam(required = false)
         String cursor
     ) {
-        TransferHistoryResponse response =
+        return ResponseEntity.ok(
             transferService.getTransfers(
                 walletId,
                 from,
                 to,
                 limit,
                 cursor
-            );
-
-        return ResponseEntity.ok(response);
+            )
+        );
     }
 }

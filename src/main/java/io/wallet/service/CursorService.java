@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.UUID;
 
 @Service
 public class CursorService {
@@ -20,17 +21,15 @@ public class CursorService {
 
     public String encode(Cursor cursor) {
         try {
-            String json = objectMapper.writeValueAsString(cursor);
+            byte[] json = objectMapper.writeValueAsBytes(cursor);
 
             return Base64.getUrlEncoder()
                 .withoutPadding()
-                .encodeToString(
-                    json.getBytes(StandardCharsets.UTF_8)
-                );
+                .encodeToString(json);
 
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException(
-                "Unable to encode pagination cursor",
+                "Unable to encode cursor",
                 exception
             );
         }
@@ -42,27 +41,38 @@ public class CursorService {
         }
 
         try {
-            byte[] decoded = Base64.getUrlDecoder()
-                .decode(encodedCursor);
+            byte[] decoded =
+                Base64.getUrlDecoder().decode(encodedCursor);
 
-            String json = new String(
-                decoded,
-                StandardCharsets.UTF_8
-            );
+            Cursor cursor =
+                objectMapper.readValue(
+                    decoded,
+                    Cursor.class
+                );
 
-            Cursor cursor = objectMapper.readValue(
-                json,
-                Cursor.class
-            );
-
-            if (cursor.createdAt() == null || cursor.id() == null) {
-                throw new InvalidCursorException(encodedCursor);
-            }
+            validate(cursor);
 
             return cursor;
 
-        } catch (IllegalArgumentException | JsonProcessingException exception) {
-            throw new InvalidCursorException(encodedCursor);
+        } catch (
+            IllegalArgumentException |
+            JsonProcessingException exception
+        ) {
+            throw new InvalidCursorException(
+                "Cursor is malformed or invalid"
+            );
+        }
+    }
+
+    private void validate(Cursor cursor) {
+        if (cursor == null
+            || cursor.createdAt() == null
+            || cursor.id() == null
+            || cursor.id().version() != 7) {
+
+            throw new InvalidCursorException(
+                "Cursor contains invalid pagination data"
+            );
         }
     }
 }

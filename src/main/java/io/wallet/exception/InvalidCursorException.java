@@ -2,14 +2,14 @@ package io.wallet.exception;
 
 public class InvalidCursorException extends RuntimeException {
 
-    private final String cursor;
+    private final String message;
 
-    public InvalidCursorException(String cursor) {
-        super("Invalid pagination cursor");
-        this.cursor = cursor;
+    public InvalidCursorException(String message) {
+        this.message = message;
     }
 
-    public String getCursor() {
-        return cursor;
+    @Override
+    public String getMessage() {
+        return message;
     }
 }

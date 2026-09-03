@@ -4,16 +4,18 @@ import java.util.UUID;
 
 public class WalletNotFoundException extends RuntimeException {
 
+    private final String message;
     private final UUID walletId;
 
     public WalletNotFoundException(UUID walletId) {
-        super("Wallet not found: " + walletId);
+        this.message =
+            "Wallet not found: " + walletId;
         this.walletId = walletId;
     }
 
-    public WalletNotFoundException(String message) {
-        super(message);
-        this.walletId = null;
+    @Override
+    public String getMessage() {
+        return message;
     }
 
     public UUID getWalletId() {

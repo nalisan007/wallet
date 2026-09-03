@@ -45,8 +45,9 @@ public class WalletStatementService {
         validateDateRange(from, to);
 
         long openingBalancePaise =
-            ledgerTransactionRepository
-                .calculateOpeningBalancePaise(walletId, from);
+    ledgerTransactionRepository
+        .calculateOpeningBalancePaise(walletId, from)
+        .orElse(0L);
 
         List<LedgerTransaction> transactions =
             ledgerTransactionRepository.findStatementEntries(

@@ -4,6 +4,7 @@ import io.wallet.entity.WalletResponse;
 import io.wallet.entity.WalletStatementResponse;
 import io.wallet.service.WalletService;
 import io.wallet.service.WalletStatementService;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,7 +29,9 @@ public class WalletController {
 
     @GetMapping("/{id}")
     public ResponseEntity<WalletResponse> getWallet(
-        @PathVariable UUID id
+        @PathVariable
+        @NotNull(message = "Wallet ID is required")
+        UUID id
     ) {
         return ResponseEntity.ok(
             walletService.getWallet(id)
@@ -37,7 +40,9 @@ public class WalletController {
 
     @GetMapping("/{id}/statement")
     public ResponseEntity<WalletStatementResponse> getStatement(
-        @PathVariable UUID id,
+        @PathVariable
+        @NotNull(message = "Wallet ID is required")
+        UUID id,
 
         @RequestParam
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)

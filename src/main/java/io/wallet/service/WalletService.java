@@ -7,6 +7,7 @@ import io.wallet.repository.WalletRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -20,17 +21,22 @@ public class WalletService {
 
     @Transactional(readOnly = true)
     public WalletResponse getWallet(UUID walletId) {
-        Wallet wallet = walletRepository.findById(walletId)
+        Optional<Wallet> wallet =
+            walletRepository.findById(walletId);
+
+        return wallet
+            .map(this::toResponse)
             .orElseThrow(() ->
                 new WalletNotFoundException(walletId)
             );
+    }
 
+    private WalletResponse toResponse(Wallet wallet) {
         return new WalletResponse(
             wallet.getId(),
             wallet.getBalancePaise(),
-            wallet.getStatus(),
-            wallet.getCreatedAt(),
-            wallet.getUpdatedAt()
+            wallet.getStatus().name(),
+            wallet.getCreatedAt()
         );
     }
 }

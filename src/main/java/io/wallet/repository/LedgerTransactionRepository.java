@@ -42,7 +42,7 @@ public interface LedgerTransactionRepository
         WHERE l.walletId = :walletId
           AND l.createdAt < :from
         """)
-    Long calculateOpeningBalancePaise(
+    java.util.Optional<Long>  calculateOpeningBalancePaise(
         @Param("walletId") UUID walletId,
         @Param("from") Instant from
     );
