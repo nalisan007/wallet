@@ -66,6 +66,13 @@ public class IdempotencyRecord {
     )
     private String requestHash;
 
+    @JdbcTypeCode(SqlTypes.BINARY)
+    @Column(
+        name = "transfer_id",
+        columnDefinition = "BINARY(16)"
+    )
+    private UUID transferId;
+
     @NotNull(message = "Idempotency record creation time is required")
     @Column(
         name = "created_at",
@@ -124,11 +131,19 @@ public class IdempotencyRecord {
         return requestHash;
     }
 
+    public UUID getTransferId() {
+        return transferId;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public void setTransferId(UUID transferId) {
+        this.transferId = transferId;
     }
 }

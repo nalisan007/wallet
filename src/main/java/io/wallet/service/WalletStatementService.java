@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -57,32 +58,35 @@ public class WalletStatementService {
         long runningBalancePaise = openingBalancePaise;
 
         List<StatementEntry> entries =
-            transactions.stream()
-                .map(transaction -> {
-                    long signedAmount =
-                        transaction.getEntryType() == LedgerEntryType.CREDIT
-                            ? transaction.getAmountPaise()
-                            : -transaction.getAmountPaise();
+            new ArrayList<>(transactions.size());
 
-                    runningBalancePaise += signedAmount;
+        for (LedgerTransaction transaction : transactions) {
 
-                    return new StatementEntry(
-                        transaction.getId(),
-                        transaction.getTransferId(),
-                        transaction.getEntryType(),
-                        transaction.getAmountPaise(),
-                        runningBalancePaise,
-                        transaction.getCreatedAt()
-                    );
-                })
-                .toList();
+            long signedAmount =
+                transaction.getEntryType() == LedgerEntryType.CREDIT
+                    ? transaction.getAmountPaise()
+                    : -transaction.getAmountPaise();
+
+            runningBalancePaise += signedAmount;
+
+            entries.add(
+                new StatementEntry(
+                    transaction.getId(),
+                    transaction.getTransferId(),
+                    transaction.getEntryType(),
+                    transaction.getAmountPaise(),
+                    runningBalancePaise,
+                    transaction.getCreatedAt()
+                )
+            );
+        }
 
         return new WalletStatementResponse(
             wallet.getId(),
             from,
             to,
             openingBalancePaise,
-            entries,
+            List.copyOf(entries),
             runningBalancePaise
         );
     }

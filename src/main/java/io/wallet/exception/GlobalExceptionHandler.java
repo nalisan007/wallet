@@ -1,13 +1,15 @@
 package io.wallet.exception;
 
-import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -16,73 +18,82 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(WalletNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleWalletNotFound(
-        WalletNotFoundException exception
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidation(
+        MethodArgumentNotValidException exception
     ) {
+        Map<String, String> errors = new LinkedHashMap<>();
+
+        for (FieldError fieldError : exception.getBindingResult()
+            .getFieldErrors()) {
+
+            errors.put(
+                fieldError.getField(),
+                fieldError.getDefaultMessage()
+            );
+        }
+
         return buildResponse(
-            HttpStatus.NOT_FOUND,
-            "WALLET_NOT_FOUND",
-            exception.getMessage(),
-            null
+            HttpStatus.BAD_REQUEST,
+            "VALIDATION_ERROR",
+            "Request validation failed",
+            errors
         );
     }
 
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleUserNotFound(
-        UserNotFoundException exception
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(
+        ConstraintViolationException exception
     ) {
+        Map<String, String> errors = new LinkedHashMap<>();
+
+        exception.getConstraintViolations().forEach(violation ->
+            errors.put(
+                violation.getPropertyPath().toString(),
+                violation.getMessage()
+            )
+        );
+
         return buildResponse(
-            HttpStatus.NOT_FOUND,
-            "USER_NOT_FOUND",
-            exception.getMessage(),
-            null
+            HttpStatus.BAD_REQUEST,
+            "VALIDATION_ERROR",
+            "Request validation failed",
+            errors
         );
     }
 
-    @ExceptionHandler(InsufficientBalanceException.class)
-    public ResponseEntity<ErrorResponse> handleInsufficientBalance(
-        InsufficientBalanceException exception
-    ) {
-        return buildResponse(
-            HttpStatus.CONFLICT,
-            "INSUFFICIENT_BALANCE",
-            exception.getMessage(),
-            null
-        );
-    }
-
-    @ExceptionHandler(SelfTransferException.class)
-    public ResponseEntity<ErrorResponse> handleSelfTransfer(
-        SelfTransferException exception
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+        MethodArgumentTypeMismatchException exception
     ) {
         return buildResponse(
             HttpStatus.BAD_REQUEST,
-            "SELF_TRANSFER_NOT_ALLOWED",
-            exception.getMessage(),
+            "INVALID_PARAMETER",
+            "Invalid value for parameter: "
+                + exception.getName(),
             null
         );
     }
 
-    @ExceptionHandler(InvalidAmountException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidAmount(
-        InvalidAmountException exception
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableRequest(
+        HttpMessageNotReadableException exception
     ) {
         return buildResponse(
             HttpStatus.BAD_REQUEST,
-            "INVALID_AMOUNT",
-            exception.getMessage(),
+            "INVALID_REQUEST_BODY",
+            "Request body is malformed or contains an invalid value",
             null
         );
     }
 
-    @ExceptionHandler(InvalidDateRangeException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidDateRange(
-        InvalidDateRangeException exception
+    @ExceptionHandler(InvalidIdempotencyKeyException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidIdempotencyKey(
+        InvalidIdempotencyKeyException exception
     ) {
         return buildResponse(
             HttpStatus.BAD_REQUEST,
-            "INVALID_DATE_RANGE",
+            "INVALID_IDEMPOTENCY_KEY",
             exception.getMessage(),
             null
         );
@@ -93,20 +104,8 @@ public class GlobalExceptionHandler {
         IdempotencyKeyReuseException exception
     ) {
         return buildResponse(
-            HttpStatus.UNPROCESSABLE_ENTITY,
-            "IDEMPOTENCY_KEY_REUSED",
-            exception.getMessage(),
-            null
-        );
-    }
-
-    @ExceptionHandler(IdempotencyKeyProcessingException.class)
-    public ResponseEntity<ErrorResponse> handleIdempotencyKeyProcessing(
-        IdempotencyKeyProcessingException exception
-    ) {
-        return buildResponse(
             HttpStatus.CONFLICT,
-            "IDEMPOTENCY_REQUEST_PROCESSING",
+            "IDEMPOTENCY_KEY_REUSE",
             exception.getMessage(),
             null
         );
@@ -124,6 +123,30 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InvalidDateRangeException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidDateRange(
+        InvalidDateRangeException exception
+    ) {
+        return buildResponse(
+            HttpStatus.BAD_REQUEST,
+            "INVALID_DATE_RANGE",
+            exception.getMessage(),
+            null
+        );
+    }
+
+    @ExceptionHandler(WalletNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleWalletNotFound(
+        WalletNotFoundException exception
+    ) {
+        return buildResponse(
+            HttpStatus.NOT_FOUND,
+            "WALLET_NOT_FOUND",
+            exception.getMessage(),
+            null
+        );
+    }
+
     @ExceptionHandler(WalletInactiveException.class)
     public ResponseEntity<ErrorResponse> handleWalletInactive(
         WalletInactiveException exception
@@ -136,48 +159,27 @@ public class GlobalExceptionHandler {
         );
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(
-        MethodArgumentNotValidException exception
+    @ExceptionHandler(SelfTransferException.class)
+    public ResponseEntity<ErrorResponse> handleSelfTransfer(
+        SelfTransferException exception
     ) {
-        Map<String, String> fieldErrors = new LinkedHashMap<>();
-
-        exception.getBindingResult()
-            .getFieldErrors()
-            .forEach(error ->
-                fieldErrors.put(
-                    error.getField(),
-                    error.getDefaultMessage()
-                )
-            );
-
         return buildResponse(
             HttpStatus.BAD_REQUEST,
-            "VALIDATION_ERROR",
-            "Request validation failed",
-            fieldErrors
+            "SELF_TRANSFER_NOT_ALLOWED",
+            exception.getMessage(),
+            null
         );
     }
 
-    @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleConstraintViolation(
-        ConstraintViolationException exception
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientBalance(
+        InsufficientBalanceException exception
     ) {
-        Map<String, String> fieldErrors = new LinkedHashMap<>();
-
-        exception.getConstraintViolations()
-            .forEach(violation ->
-                fieldErrors.put(
-                    violation.getPropertyPath().toString(),
-                    violation.getMessage()
-                )
-            );
-
         return buildResponse(
-            HttpStatus.BAD_REQUEST,
-            "VALIDATION_ERROR",
-            "Request validation failed",
-            fieldErrors
+            HttpStatus.CONFLICT,
+            "INSUFFICIENT_BALANCE",
+            exception.getMessage(),
+            null
         );
     }
 
@@ -188,19 +190,19 @@ public class GlobalExceptionHandler {
         return buildResponse(
             HttpStatus.CONFLICT,
             "DATA_INTEGRITY_VIOLATION",
-            "The request violates a database constraint",
+            "The operation violates a database constraint",
             null
         );
     }
 
-    @ExceptionHandler(OptimisticLockException.class)
-    public ResponseEntity<ErrorResponse> handleOptimisticLock(
-        OptimisticLockException exception
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+        IllegalArgumentException exception
     ) {
         return buildResponse(
-            HttpStatus.CONFLICT,
-            "CONCURRENT_UPDATE",
-            "The resource was modified concurrently",
+            HttpStatus.BAD_REQUEST,
+            "INVALID_REQUEST",
+            exception.getMessage(),
             null
         );
     }
@@ -221,29 +223,18 @@ public class GlobalExceptionHandler {
         HttpStatus status,
         String code,
         String message,
-        Map<String, String> fieldErrors
+        Map<String, String> details
     ) {
         ErrorResponse response = new ErrorResponse(
             Instant.now(),
             status.value(),
             code,
             message,
-            fieldErrors
+            details
         );
 
         return ResponseEntity
             .status(status)
             .body(response);
     }
-    @ExceptionHandler(InvalidIdempotencyKeyException.class)
-public ResponseEntity<ErrorResponse> handleInvalidIdempotencyKey(
-    InvalidIdempotencyKeyException exception
-) {
-    return buildResponse(
-        HttpStatus.BAD_REQUEST,
-        "INVALID_IDEMPOTENCY_KEY",
-        exception.getMessage(),
-        null
-    );
-}
 }

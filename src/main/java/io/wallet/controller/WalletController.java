@@ -30,10 +30,9 @@ public class WalletController {
     public ResponseEntity<WalletResponse> getWallet(
         @PathVariable UUID id
     ) {
-        WalletResponse response =
-            walletService.getWallet(id);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+            walletService.getWallet(id)
+        );
     }
 
     @GetMapping("/{id}/statement")
@@ -48,13 +47,12 @@ public class WalletController {
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         Instant to
     ) {
-        WalletStatementResponse response =
+        return ResponseEntity.ok(
             walletStatementService.getStatement(
                 id,
                 from,
                 to
-            );
-
-        return ResponseEntity.ok(response);
+            )
+        );
     }
 }

@@ -10,7 +10,6 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -22,12 +21,16 @@ import java.util.UUID;
     name = "transfer",
     indexes = {
         @Index(
-            name = "idx_transfer_from_created_id",
+            name = "idx_transfer_from_wallet_created_at",
             columnList = "from_wallet_id, created_at, id"
         ),
         @Index(
-            name = "idx_transfer_to_created_id",
+            name = "idx_transfer_to_wallet_created_at",
             columnList = "to_wallet_id, created_at, id"
+        ),
+        @Index(
+            name = "idx_transfer_created_at",
+            columnList = "created_at"
         )
     }
 )
@@ -43,36 +46,32 @@ public class Transfer {
     )
     private UUID id;
 
-    @NotNull
+    @NotNull(message = "From wallet ID is required")
     @JdbcTypeCode(SqlTypes.BINARY)
     @Column(
         name = "from_wallet_id",
         nullable = false,
-        updatable = false,
         columnDefinition = "BINARY(16)"
     )
     private UUID fromWalletId;
 
-    @NotNull
+    @NotNull(message = "To wallet ID is required")
     @JdbcTypeCode(SqlTypes.BINARY)
     @Column(
         name = "to_wallet_id",
         nullable = false,
-        updatable = false,
         columnDefinition = "BINARY(16)"
     )
     private UUID toWalletId;
 
-    @NotNull
-    @Positive
+    @Positive(message = "Transfer amount must be greater than zero")
     @Column(
         name = "amount_paise",
-        nullable = false,
-        updatable = false
+        nullable = false
     )
-    private Long amountPaise;
+    private long amountPaise;
 
-    @NotNull
+    @NotNull(message = "Transfer creation time is required")
     @Column(
         name = "created_at",
         nullable = false,
@@ -80,7 +79,7 @@ public class Transfer {
     )
     private Instant createdAt;
 
-    @NotNull
+    @NotNull(message = "Transfer update time is required")
     @Column(
         name = "updated_at",
         nullable = false
@@ -88,13 +87,12 @@ public class Transfer {
     private Instant updatedAt;
 
     protected Transfer() {
-
     }
 
     public Transfer(
         UUID fromWalletId,
         UUID toWalletId,
-        Long amountPaise
+        long amountPaise
     ) {
         this.fromWalletId = fromWalletId;
         this.toWalletId = toWalletId;
@@ -133,7 +131,7 @@ public class Transfer {
         return toWalletId;
     }
 
-    public Long getAmountPaise() {
+    public long getAmountPaise() {
         return amountPaise;
     }
 

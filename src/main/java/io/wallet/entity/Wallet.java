@@ -3,8 +3,6 @@ package io.wallet.entity;
 import com.github.f4b6a3.uuid.UuidCreator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
@@ -23,8 +21,12 @@ import java.util.UUID;
     name = "wallet",
     indexes = {
         @Index(
-            name = "idx_wallet_type_status",
-            columnList = "wallet_type, status"
+            name = "idx_wallet_status",
+            columnList = "status"
+        ),
+        @Index(
+            name = "idx_wallet_created_at",
+            columnList = "created_at"
         )
     }
 )
@@ -40,25 +42,17 @@ public class Wallet {
     )
     private UUID id;
 
-    @NotNull
-    @Enumerated(EnumType.STRING)
-    @Column(
-        name = "wallet_type",
-        nullable = false,
-        length = 20
+    @NotNull(message = "Wallet balance is required")
+    @PositiveOrZero(
+        message = "Wallet balance cannot be negative"
     )
-    private WalletType walletType;
-
-    @NotNull
-    @PositiveOrZero
     @Column(
         name = "balance_paise",
         nullable = false
     )
-    private Long balancePaise;
+    private long balancePaise;
 
-    @NotNull
-    @Enumerated(EnumType.STRING)
+    @NotNull(message = "Wallet status is required")
     @Column(
         name = "status",
         nullable = false,
@@ -66,7 +60,7 @@ public class Wallet {
     )
     private WalletStatus status;
 
-    @NotNull
+    @NotNull(message = "Wallet creation time is required")
     @Column(
         name = "created_at",
         nullable = false,
@@ -74,7 +68,7 @@ public class Wallet {
     )
     private Instant createdAt;
 
-    @NotNull
+    @NotNull(message = "Wallet update time is required")
     @Column(
         name = "updated_at",
         nullable = false
@@ -82,17 +76,56 @@ public class Wallet {
     private Instant updatedAt;
 
     protected Wallet() {
-
     }
 
     public Wallet(
-        WalletType walletType,
-        Long balancePaise,
+        long balancePaise,
         WalletStatus status
     ) {
-        this.walletType = walletType;
+        if (balancePaise < 0) {
+            throw new IllegalArgumentException(
+                "Wallet balance cannot be negative"
+            );
+        }
+
         this.balancePaise = balancePaise;
         this.status = status;
+    }
+
+    public void debit(long amountPaise) {
+        if (amountPaise <= 0) {
+            throw new IllegalArgumentException(
+                "Debit amount must be greater than zero"
+            );
+        }
+
+        if (balancePaise < amountPaise) {
+            throw new IllegalArgumentException(
+                "Wallet balance cannot become negative"
+            );
+        }
+
+        balancePaise -= amountPaise;
+    }
+
+    public void credit(long amountPaise) {
+        if (amountPaise <= 0) {
+            throw new IllegalArgumentException(
+                "Credit amount must be greater than zero"
+            );
+        }
+
+        try {
+            balancePaise = Math.addExact(
+                balancePaise,
+                amountPaise
+            );
+        } catch (ArithmeticException exception) {
+            throw new IllegalArgumentException(
+                "Wallet balance exceeds the supported limit",
+                exception
+            );
+        }
     }
 
     @PrePersist
@@ -119,11 +152,7 @@ public class Wallet {
         return id;
     }
 
-    public WalletType getWalletType() {
-        return walletType;
-    }
-
-    public Long getBalancePaise() {
+    public long getBalancePaise() {
         return balancePaise;
     }
 

@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface IdempotencyRecordRepository
-        extends JpaRepository<IdempotencyRecord, UUID> {
+    extends JpaRepository<IdempotencyRecord, UUID> {
 
     Optional<IdempotencyRecord> findByIdempotencyKey(
         UUID idempotencyKey
