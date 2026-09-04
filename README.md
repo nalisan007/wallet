@@ -6,6 +6,8 @@ The project contains a Spring Boot backend and a React frontend. It supports wal
 
 This is an MVP, but the core money-movement path is designed around the same concerns that matter in a production system: validation, transactions, idempotency, concurrency control, and an audit trail.
 
+### The prompts.md file has all prompts used to create this project
+
 
 ## Running the backend
 
