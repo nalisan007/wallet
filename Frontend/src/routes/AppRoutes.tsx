@@ -7,10 +7,10 @@ import { WalletStatementPage } from "../pages/WalletStatementPage";
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/wallets/:walletId" element={<WalletPage />} />
-      <Route path="/wallets/:walletId/transfer" element={<TransferPage />} />
-      <Route path="/wallets/:walletId/transfers" element={<TransferHistoryPage />} />
-      <Route path="/wallets/:walletId/statement" element={<WalletStatementPage />} />
+      <Route path="/api/v1/wallets/:walletId" element={<WalletPage />} />
+      <Route path="/api/v1/wallets/:walletId/transfer" element={<TransferPage />} />
+      <Route path="/api/v1/wallets/:walletId/transfers" element={<TransferHistoryPage />} />
+      <Route path="/api/v1/wallets/:walletId/statement" element={<WalletStatementPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

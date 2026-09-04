@@ -12,7 +12,7 @@ export function createTransfer(
   idempotencyKey: string
 ): Promise<TransferResponse> {
   return apiClient.post<TransferResponse>(
-    `/api/v1/wallets/${encodeURIComponent(walletId)}/transfers`,
+    `/wallets/${encodeURIComponent(walletId)}/transfers`,
     request,
     { "Idempotency-Key": idempotencyKey }
   );
@@ -31,6 +31,6 @@ export function getTransferHistory(
 
   const query = search.toString();
   return apiClient.get<TransferHistoryResponse>(
-    `/api/v1/wallets/${encodeURIComponent(walletId)}/transfers${query ? `?${query}` : ""}`
+    `/wallets/${encodeURIComponent(walletId)}/transfers${query ? `?${query}` : ""}`
   );
 }

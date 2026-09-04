@@ -5,12 +5,10 @@ CREATE TABLE wallet_user (
     created_at TIMESTAMP(6) NOT NULL,
     updated_at TIMESTAMP(6) NOT NULL,
     PRIMARY KEY (id),
-    CONSTRAINT chk_wallet_user_status
-        CHECK (status IN ('ACTIVE', 'INACTIVE'))
+    CONSTRAINT chk_wallet_user_status CHECK (status IN ('ACTIVE', 'INACTIVE'))
 );
 
-CREATE INDEX idx_wallet_user_status
-    ON wallet_user (status);
+CREATE INDEX idx_wallet_user_status ON wallet_user (status);
 
 CREATE TABLE wallets (
     id BINARY(16) NOT NULL,

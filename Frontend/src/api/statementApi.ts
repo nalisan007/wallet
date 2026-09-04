@@ -8,6 +8,6 @@ export function getWalletStatement(
 ): Promise<WalletStatementResponse> {
   const params = new URLSearchParams({ from, to });
   return apiClient.get<WalletStatementResponse>(
-    `/api/v1/wallets/${encodeURIComponent(walletId)}/statement?${params.toString()}`
+    `/wallets/${encodeURIComponent(walletId)}/statement?${params.toString()}`
   );
 }
