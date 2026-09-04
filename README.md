@@ -6,6 +6,135 @@ The project contains a Spring Boot backend and a React frontend. It supports wal
 
 This is an MVP, but the core money-movement path is designed around the same concerns that matter in a production system: validation, transactions, idempotency, concurrency control, and an audit trail.
 
+
+## Running the backend
+
+### Prerequisites
+
+Install:
+
+- Java 21
+- IntelliJ IDEA
+- MariaDB or MySQL
+
+If your local database credentials differ from the project's configuration, update the application configuration before starting the backend.
+
+### Start the backend
+
+Clone the repository:
+
+```bash
+git clone <repository-url>
+```
+
+Open the cloned project directory in IntelliJ IDEA.
+
+Let IntelliJ finish importing the Maven project and downloading its dependencies.
+
+Find the `WalletApplication` class and run its `main` method.
+
+Spring Boot starts the API and Flyway applies the database migrations, including the development seed data.
+
+The backend normally runs on:
+
+```text
+http://localhost:8080
+```
+
+The backend endpoint index is available at:
+
+```text
+http://localhost:8080/
+```
+
+If Swagger is enabled in the current configuration, it is available at:
+
+```text
+http://localhost:8080/swagger-ui.html
+```
+
+## Running the frontend
+
+From the repository root:
+
+```bash
+cd Frontend
+```
+
+Install the dependencies:
+
+```bash
+npm install
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Vite prints the local URL in the console. Open the URL shown there, normally:
+
+```text
+http://localhost:5173
+```
+
+The frontend API base URL is configured through:
+
+```text
+Frontend/.env
+```
+
+For local development:
+
+```text
+VITE_API_BASE_URL=http://localhost:8080/api/v1
+```
+
+The `/api/v1` prefix is intentionally part of the configured API base URL. The frontend does not silently add a different API version.
+
+The endpoint page can be opened at:
+
+```text
+http://localhost:5173/api/v1
+```
+
+A seeded wallet can be opened at:
+
+```text
+http://localhost:5173/api/v1/wallets/01999000-0000-7000-8000-000000000004
+```
+
+## Testing
+
+Backend tests:
+
+```bash
+mvn test
+```
+
+Frontend tests:
+
+```bash
+cd Frontend
+npm test
+```
+
+The test suite covers areas including:
+
+- Transfer validation.
+- Wallet operations.
+- Ledger entry creation.
+- Statement calculation.
+- Cursor encoding and decoding.
+- Idempotency behavior.
+- Exception handling.
+- Controller behavior.
+- Concurrent transfers.
+- Concurrent requests using the same idempotency key.
+
+
+
 ## What the application does
 
 - Maintains wallets with balances stored in paise.
@@ -453,133 +582,6 @@ wallet/
 │
 └── README.md
 ```
-
-## Running the backend
-
-### Prerequisites
-
-Install:
-
-- Java 21
-- IntelliJ IDEA
-- MariaDB or MySQL
-
-If your local database credentials differ from the project's configuration, update the application configuration before starting the backend.
-
-### Start the backend
-
-Clone the repository:
-
-```bash
-git clone <repository-url>
-```
-
-Open the cloned project directory in IntelliJ IDEA.
-
-Let IntelliJ finish importing the Maven project and downloading its dependencies.
-
-Find the `WalletApplication` class and run its `main` method.
-
-Spring Boot starts the API and Flyway applies the database migrations, including the development seed data.
-
-The backend normally runs on:
-
-```text
-http://localhost:8080
-```
-
-The backend endpoint index is available at:
-
-```text
-http://localhost:8080/
-```
-
-If Swagger is enabled in the current configuration, it is available at:
-
-```text
-http://localhost:8080/swagger-ui.html
-```
-
-## Running the frontend
-
-From the repository root:
-
-```bash
-cd Frontend
-```
-
-Install the dependencies:
-
-```bash
-npm install
-```
-
-Start the development server:
-
-```bash
-npm run dev
-```
-
-Vite prints the local URL in the console. Open the URL shown there, normally:
-
-```text
-http://localhost:5173
-```
-
-The frontend API base URL is configured through:
-
-```text
-Frontend/.env
-```
-
-For local development:
-
-```text
-VITE_API_BASE_URL=http://localhost:8080/api/v1
-```
-
-The `/api/v1` prefix is intentionally part of the configured API base URL. The frontend does not silently add a different API version.
-
-The endpoint page can be opened at:
-
-```text
-http://localhost:5173/api/v1
-```
-
-A seeded wallet can be opened at:
-
-```text
-http://localhost:5173/api/v1/wallets/01999000-0000-7000-8000-000000000004
-```
-
-## Testing
-
-Backend tests:
-
-```bash
-mvn test
-```
-
-Frontend tests:
-
-```bash
-cd Frontend
-npm test
-```
-
-The test suite covers areas including:
-
-- Transfer validation.
-- Wallet operations.
-- Ledger entry creation.
-- Statement calculation.
-- Cursor encoding and decoding.
-- Idempotency behavior.
-- Exception handling.
-- Controller behavior.
-- Concurrent transfers.
-- Concurrent requests using the same idempotency key.
-
 ## Scope
 
 This is an MVP (Minimum Viable Product) rather than a complete banking platform. Authentication and authorization, production observability, external payment rails, reconciliation processes, operational dashboards, and other production concerns would need to be added before using the system for real financial transactions.
