@@ -1,15 +1,22 @@
 export type LedgerEntryType = "DEBIT" | "CREDIT";
 export type LedgerTransactionType = "TRANSFER" | "DEPOSIT" | "WITHDRAWAL";
 
-export interface StatementEntryResponse {
-  entryId?: string;
-  ledgerTransactionId?: string;
-  transactionId?: string;
-  transferId?: string | null;
-  transactionType?: LedgerTransactionType;
+export interface WalletActivityResponse {
+  ledgerTransactionId: string;
+  transferId: string | null;
+  transactionType: LedgerTransactionType;
   entryType: LedgerEntryType;
   amountPaise: number;
-  balanceAfterPaise?: number;
+  createdAt: string;
+}
+
+export interface StatementEntryResponse {
+  ledgerTransactionId: string;
+  transferId: string | null;
+  transactionType: LedgerTransactionType;
+  entryType: LedgerEntryType;
+  amountPaise: number;
+  balanceAfterPaise: number;
   createdAt: string;
 }
 

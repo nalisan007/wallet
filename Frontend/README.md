@@ -1,8 +1,8 @@
 # Wallet Transfer Frontend
 
-React + TypeScript + Vite frontend for the Wallet Transfer MVP.
+React + TypeScript + Vite + Tailwind CSS frontend for the Wallet Ledger MVP.
 
-## Setup
+## Start
 
 ```bash
 npm install
@@ -10,31 +10,27 @@ cp .env.example .env
 npm run dev
 ```
 
-Set the backend URL in `.env`:
+Open:
 
 ```text
-VITE_API_BASE_URL=http://localhost:8080
+http://localhost:5173/api/v1
 ```
 
-## Routes
+Seeded user wallet:
 
 ```text
-/wallets/:walletId
-/wallets/:walletId/transfer
-/wallets/:walletId/transfers
-/wallets/:walletId/statement
+http://localhost:5173/api/v1/wallets/01999000-0000-7000-8000-000000000004
 ```
 
-## Build
+Backend API base configuration:
+
+```text
+VITE_API_BASE_URL=http://localhost:8080/api/v1
+```
+
+## Build and test
 
 ```bash
 npm run build
-```
-
-## Tests
-
-```bash
 npm test
 ```
-
-The statement API is intentionally typed to tolerate the two statement-entry shapes present during the backend phase; the UI consumes fields only when they are returned.

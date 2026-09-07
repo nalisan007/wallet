@@ -3,11 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Wallet Transfer MVP" />
+    <meta name="description" content="Wallet transfer ledger MVP" />
     <title>Wallet Transfer</title>
   </head>
   <body>
-    <div id="root"></div>
+    <noscript>
+      <h1>Wallet Transfer</h1>
+      <h2>API endpoints</h2>
+      <ul>
+        <li>GET /api/v1/wallets/{id}</li>
+        <li>POST /api/v1/wallets/{walletId}/transfers</li>
+        <li>GET /api/v1/transfers?walletId=&amp;from=&amp;to=&amp;limit=20&amp;cursor=</li>
+        <li>GET /api/v1/wallets/{id}/statement?from=&amp;to=</li>
+      </ul>
+    </noscript>
+    <div id="root">
+      <main style="font-family:system-ui,sans-serif;max-width:900px;margin:40px auto;padding:0 20px">
+        <h1>Wallet Transfer</h1>
+        <p>Loading application…</p>
+        <h2>API endpoints</h2>
+        <ul>
+          <li>GET /api/v1/wallets/{id}</li>
+          <li>POST /api/v1/wallets/{walletId}/transfers</li>
+          <li>GET /api/v1/transfers?walletId=&amp;from=&amp;to=&amp;limit=20&amp;cursor=</li>
+          <li>GET /api/v1/wallets/{id}/statement?from=&amp;to=</li>
+        </ul>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,12 +1,12 @@
 export interface ApiError {
   code: string;
   message: string;
-  details?: unknown;
+  details?: Record<string, string>;
   timestamp?: string;
 }
 
 export interface ApiException extends Error {
   status: number;
   code: string;
-  details?: unknown;
+  details?: Record<string, string>;
 }

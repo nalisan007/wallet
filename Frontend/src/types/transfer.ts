@@ -9,7 +9,7 @@ export interface TransferResponse {
   fromWalletId: string;
   toWalletId: string;
   amountPaise: number;
-  status: string;
+  status: "COMPLETED" | "FAILED" | string;
   createdAt: string;
 }
 

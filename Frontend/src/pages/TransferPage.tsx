@@ -10,29 +10,10 @@ export function TransferPage() {
   const { walletId } = useParams();
   const [wallet, setWallet] = useState<WalletResponse | null>(null);
   const [error, setError] = useState<unknown>(null);
-
-  const load = useCallback(async () => {
-    if (!walletId) return;
-    try {
-      setError(null);
-      setWallet(await getWallet(walletId));
-    } catch (requestError) {
-      setError(requestError);
-    }
-  }, [walletId]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
+  const load = useCallback(async () => { if (!walletId) return; try { setError(null); setWallet(await getWallet(walletId)); } catch (e) { setError(e); } }, [walletId]);
+  useEffect(() => { void load(); }, [load]);
   if (!walletId) return <ApiErrorMessage error={new Error("Wallet ID is required.")} />;
   if (error) return <ApiErrorMessage error={error} onRetry={() => void load()} />;
   if (!wallet) return <LoadingState label="Loading wallet..." />;
-
-  return (
-    <>
-      <Link className="back-link" to={`/wallets/${walletId}`}>← Wallet</Link>
-      <TransferForm wallet={wallet} onSuccess={() => void load()} />
-    </>
-  );
+  return <><Link className="back-link" to={`/api/v1/wallets/${walletId}`}>← Wallet</Link><TransferForm wallet={wallet} onSuccess={() => void load()} /></>;
 }
