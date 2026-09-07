@@ -18,8 +18,9 @@ Install:
 - Java 21
 - IntelliJ IDEA
 - MariaDB or MySQL
+- Flyway
 
-If your local database credentials differ from the project's configuration, update the application configuration before starting the backend.
+#### Do update local database credentials  from the project's configuration. Update the application.properties before starting the backend.
 
 ### Start the backend
 
@@ -49,10 +50,14 @@ The backend endpoint index is available at:
 http://localhost:8080/
 ```
 
-If Swagger is enabled in the current configuration, it is available at:
+Swagger is enabled in the current configuration, it is available at:
 
 ```text
 http://localhost:8080/swagger-ui.html
+```
+also at
+```text
+http://localhost:8080/swagger-ui/index.html
 ```
 
 ## Running the frontend
